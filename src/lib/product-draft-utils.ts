@@ -11,7 +11,8 @@ export type ProductDraftSection =
   | 'images' 
   | 'variants'
   | 'inventory'
-  | 'seo';
+  | 'seo'
+  | 'specifications';
 
 // Interface for the stored product draft
 export interface ProductDraft {
@@ -125,7 +126,7 @@ export const clearProductDraft = (silent: boolean = true): void => {
 export const calculateFormCompletion = (
   completedSections: ProductDraftSection[]
 ): number => {
-  const totalSections = 7; // Update this if more sections are added
+  const totalSections = 8; // Update this if more sections are added (now including specifications)
   const uniqueCompletedSections = [...new Set(completedSections)];
   return Math.round((uniqueCompletedSections.length / totalSections) * 100);
 };
@@ -172,6 +173,12 @@ export const determineCompletedSections = (data: Record<string, any>): ProductDr
   // SEO section: at least one SEO field
   if (data.metaTitle || data.metaDescription || data.metaKeywords) {
     completedSections.push('seo');
+  }
+  
+  // Specifications section: at least one specification with value
+  if (Array.isArray(data.specifications) && data.specifications.length > 0 && 
+      data.specifications.some(spec => spec.specValue?.trim())) {
+    completedSections.push('specifications');
   }
   
   return completedSections;

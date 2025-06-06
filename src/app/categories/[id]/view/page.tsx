@@ -4,7 +4,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil, Trash } from "lucide-react";
+import { ArrowLeft, Pencil, Trash, FolderPlus } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -195,23 +195,30 @@ export default function CategoryDetailPage() {
                 </CardContent>
               </Card>
               
-              {category.icon && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Category Icon</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="border rounded-md aspect-square flex items-center justify-center bg-muted">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Category Icon</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-md aspect-square flex items-center justify-center bg-muted">
+                    {category.icon ? (
                       <img 
                         src={category.icon} 
                         alt={category.name} 
                         className="max-w-full max-h-full object-contain"
                       />
-                    </div>
+                    ) : (
+                      <div className="flex flex-col items-center text-muted-foreground">
+                        <FolderPlus className="h-10 w-10 mb-2" />
+                        <p className="text-sm">No icon available</p>
+                      </div>
+                    )}
+                  </div>
+                  {category.icon && (
                     <p className="text-xs text-muted-foreground mt-2 break-all">{category.icon}</p>
-                  </CardContent>
-                </Card>
-              )}
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         ) : (

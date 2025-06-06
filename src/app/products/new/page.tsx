@@ -22,6 +22,7 @@ import {
 import { categoriesApi } from "@/lib/api/categories-api";
 import { brandsApi } from "@/lib/api/brands-api";
 import { tagsApi } from "@/lib/api/tags-api";
+import { specificationsApi } from "@/lib/api/specifications-api";
 import {
   saveProductDraft,
   loadProductDraft,
@@ -34,6 +35,8 @@ import { FormTooltip } from "@/components/ui/form-tooltip";
 import dynamic from "next/dynamic";
 import { getSafeImageSrc, truncateText } from "@/lib/utils";
 import { useProductPreview, PreviewProduct } from "@/hooks/useProductPreview";
+import { ProductSpecificationsForm } from "@/components/ProductSpecificationsForm";
+import { CreateProductSpecificationDto } from "@/lib/api/specifications-api";
 
 // Lazy load components with a different name
 const LazyProductFormProgress = dynamic(
@@ -105,6 +108,9 @@ export default function NewProductPage() {
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingTags, setLoadingTags] = useState(false);
   const [loadingSubcategories, setLoadingSubcategories] = useState(false);
+  
+  // Add state for product specifications
+  const [specifications, setSpecifications] = useState<CreateProductSpecificationDto[]>([]);
   
   // Available currencies
   const currencies = [
@@ -532,13 +538,15 @@ export default function NewProductPage() {
       selectedTags,
       currency,
       variants,
+      specifications,
     };
   }, [
     title, description, shortDescription, price, discountPrice,
     sku, barcode, weight, dimensions, stockQuantity,
     brandId, categoryId, subCategoryId, isActive, isFeatured,
     visibility, metaTitle, metaDescription, metaKeywords,
-    productImages, selectedTags, currency, variants
+    productImages, selectedTags, currency, variants, 
+    specifications
   ]);
 
   // Auto-save function
@@ -632,6 +640,22 @@ export default function NewProductPage() {
       if (data.variants) setVariants(data.variants);
       if (data.currency) setCurrency(data.currency);
       
+      // Specifications - ensure we have a complete specifications array
+      if (data.specifications && Array.isArray(data.specifications)) {
+        // Make sure each specification has all required properties
+        const validSpecs = data.specifications.map(spec => ({
+          productId: spec.productId || "new",
+          specKey: spec.specKey || "",
+          specValue: spec.specValue || "",
+          specGroup: spec.specGroup || "Technical Specifications",
+          sortOrder: spec.sortOrder || 0,
+          isFilterable: spec.isFilterable !== undefined ? spec.isFilterable : true
+        })).filter(spec => spec.specKey && spec.specKey.trim() !== "");
+        
+        setSpecifications(validSpecs);
+        console.log("Loaded specifications from draft:", validSpecs);
+      }
+      
       // Update state
       setDraftId(draft.draftId);
       setHasDraft(true);
@@ -662,6 +686,7 @@ export default function NewProductPage() {
     brandId, categoryId, subCategoryId, isActive, isFeatured,
     visibility, metaTitle, metaDescription, metaKeywords,
     productImages, selectedTags, currency, variants,
+    specifications,
     autoSaveDraft
   ]);
   
@@ -686,7 +711,12 @@ export default function NewProductPage() {
     };
   }, []);
   
-  // Handle form submission
+  // Add handler for specifications change
+  const handleSpecificationsChange = (newSpecs: CreateProductSpecificationDto[]) => {
+    setSpecifications(newSpecs);
+  };
+
+  // Update the handleSubmit function to include specifications
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -757,6 +787,26 @@ export default function NewProductPage() {
       // Call API to create product
       const result = await productsApi.createProduct(productData);
       console.log("Product created successfully:", result);
+      
+      // If we have specifications, save them
+      if (specifications.length > 0) {
+        // Update product IDs in specifications
+        const specsWithProductId = specifications.map(spec => ({
+          ...spec,
+          productId: result.id
+        }));
+        
+        try {
+          // Save specifications in bulk
+          await specificationsApi.createProductSpecificationsBulk(
+            specsWithProductId.filter(spec => spec.specValue.trim() !== "")
+          );
+        } catch (specError) {
+          console.error("Error saving specifications:", specError);
+          // Don't fail the whole process if specs fail
+          toast.error("Product created but specifications could not be saved");
+        }
+      }
       
       // Add this at the end after successful creation
       clearProductDraft(true); // Silently clear the draft
@@ -1599,6 +1649,14 @@ export default function NewProductPage() {
             </div>
           </div>
         </div>
+        
+        {/* Add the specifications form after the variants section */}
+        <ProductSpecificationsForm 
+          productId="new" 
+          categoryId={categoryId} 
+          onSpecificationsChange={handleSpecificationsChange}
+          specifications={specifications}
+        />
       </form>
       
       {/* Add the preview modal */}

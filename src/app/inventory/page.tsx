@@ -1,72 +1,77 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, RefreshCw, AlertTriangle } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
-
-const inventory = [
-  {
-    id: "INV001",
-    name: "Premium Headphones",
-    sku: "TECH-001",
-    category: "Electronics",
-    stock: 45,
-    reserved: 5,
-    reorderPoint: 10,
-    status: "In Stock",
-  },
-  {
-    id: "INV002",
-    name: "Ergonomic Chair",
-    sku: "FURN-002",
-    category: "Furniture",
-    stock: 12,
-    reserved: 3,
-    reorderPoint: 5,
-    status: "In Stock",
-  },
-  {
-    id: "INV003",
-    name: "Smartphone X",
-    sku: "TECH-003",
-    category: "Electronics",
-    stock: 0,
-    reserved: 0,
-    reorderPoint: 5,
-    status: "Out of Stock",
-  },
-  {
-    id: "INV004",
-    name: "Fitness Watch",
-    sku: "WEAR-004",
-    category: "Wearables",
-    stock: 8,
-    reserved: 2,
-    reorderPoint: 10,
-    status: "Low Stock",
-  },
-  {
-    id: "INV005",
-    name: "Designer Backpack",
-    sku: "FASH-005",
-    category: "Fashion",
-    stock: 23,
-    reserved: 3,
-    reorderPoint: 8,
-    status: "In Stock",
-  },
-];
+import { inventoryApi, InventoryItem } from "@/lib/api/inventory-api";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 export default function InventoryPage() {
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchInventory = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await inventoryApi.getInventory();
+      setInventory(data);
+    } catch (err: any) {
+      console.error("Error fetching inventory:", err);
+      setError(err.message || "Failed to load inventory data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
+
+  // Calculate derived values for summary cards
+  const lowStockCount = inventory.filter(item => item.isLowStock).length;
+  const outOfStockCount = inventory.filter(item => item.stockQuantity === 0).length;
+  const reservedItemsCount = inventory.reduce((total, item) => total + item.reservedQuantity, 0);
+
+  // Get inventory status
+  const getInventoryStatus = (item: InventoryItem) => {
+    if (item.stockQuantity === 0) return "Out of Stock";
+    if (item.isLowStock) return "Low Stock";
+    return "In Stock";
+  };
+
+  // Get status badge class
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "Out of Stock":
+        return "destructive";
+      case "Low Stock":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Inventory</h1>
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Add Stock
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={fetchInventory} disabled={loading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Stock
+            </Button>
+          </div>
         </div>
         
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -85,7 +90,7 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {inventory.filter(item => item.status === "Low Stock").length}
+                {lowStockCount}
               </div>
             </CardContent>
           </Card>
@@ -96,7 +101,7 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {inventory.filter(item => item.status === "Out of Stock").length}
+                {outOfStockCount}
               </div>
             </CardContent>
           </Card>
@@ -107,7 +112,7 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {inventory.reduce((total, item) => total + item.reserved, 0)}
+                {reservedItemsCount}
               </div>
             </CardContent>
           </Card>
@@ -121,49 +126,75 @@ export default function InventoryPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Reserved</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {inventory.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.sku}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>{item.stock}</TableCell>
-                    <TableCell>{item.reserved}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        item.status === "In Stock" 
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" 
-                          : item.status === "Low Stock"
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                      }`}>
-                        {item.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <button className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-                        Update
-                      </button>
-                      <button className="text-sm text-red-600 hover:underline dark:text-red-400">
-                        Delete
-                      </button>
-                    </TableCell>
+            {error ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <AlertTriangle className="h-10 w-10 text-destructive mb-2" />
+                <h3 className="text-lg font-semibold">Error loading inventory</h3>
+                <p className="text-muted-foreground">{error}</p>
+                <Button variant="outline" onClick={fetchInventory} className="mt-4">
+                  Try Again
+                </Button>
+              </div>
+            ) : loading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                  <p>Loading inventory data...</p>
+                </div>
+              </div>
+            ) : inventory.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <h3 className="text-lg font-semibold">No inventory items found</h3>
+                <p className="text-muted-foreground">Add stock to create inventory items</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Reserved</TableHead>
+                    <TableHead>Available</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {inventory.map((item) => {
+                    const status = getInventoryStatus(item);
+                    const badgeVariant = getStatusBadgeVariant(status);
+                    
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">
+                          {item.product?.title || (item.variant ? `${item.product?.title} - ${item.variant.variantName}` : 'Unknown Product')}
+                        </TableCell>
+                        <TableCell>{item.product?.sku || item.variant?.sku}</TableCell>
+                        <TableCell>{item.stockQuantity}</TableCell>
+                        <TableCell>{item.reservedQuantity}</TableCell>
+                        <TableCell>{item.availableQuantity}</TableCell>
+                        <TableCell>
+                          <Badge variant={badgeVariant}>{status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Link href={`/inventory/${item.productId}`}>
+                            <Button variant="link" className="h-auto p-0">
+                              Update
+                            </Button>
+                          </Link>
+                          <Link href={`/inventory/${item.productId}`}>
+                            <Button variant="link" className="h-auto p-0 text-destructive">
+                              History
+                            </Button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>

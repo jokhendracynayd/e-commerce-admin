@@ -30,6 +30,9 @@ import { Switch } from "@/components/ui/switch";
 import { getCurrencySymbol } from "@/lib/utils";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { ProductSpecificationsForm } from "@/components/ProductSpecificationsForm";
+import { ProductSpecificationsDisplay } from "@/components/ProductSpecificationsDisplay";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ProductEditPage() {
   const router = useRouter();
@@ -1067,7 +1070,31 @@ export default function ProductEditPage() {
           </div>
         </div>
         
-        <Card className="border-destructive/50 mt-4">
+        {/* Add Specifications Section */}
+        <div className="mt-8">
+          <Tabs defaultValue="view" className="w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Technical Specifications</h2>
+              <TabsList>
+                <TabsTrigger value="view">View</TabsTrigger>
+                <TabsTrigger value="edit">Edit</TabsTrigger>
+              </TabsList>
+            </div>
+            
+            <TabsContent value="view" className="mt-0">
+              <ProductSpecificationsDisplay productId={productId} />
+            </TabsContent>
+            
+            <TabsContent value="edit" className="mt-0">
+              <ProductSpecificationsForm 
+                productId={productId} 
+                categoryId={categoryId} 
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+        
+        <Card className="border-destructive/50 mt-8">
           <CardHeader className="text-destructive">
             <CardTitle>Danger Zone</CardTitle>
             <CardDescription>

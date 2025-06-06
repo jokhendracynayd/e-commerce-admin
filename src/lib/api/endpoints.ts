@@ -50,6 +50,21 @@ export const ENDPOINTS = {
     DETAIL: (id: string) => `/tags/${id}`,
   },
   
+  SPECIFICATIONS: {
+    TEMPLATES: '/specifications/templates',
+    TEMPLATES_BY_CATEGORY: (categoryId: string) => 
+      `/specifications/templates/category/${categoryId}`,
+    TEMPLATE_DETAIL: (id: string) => `/specifications/templates/${id}`,
+    PRODUCT: '/specifications/product',
+    PRODUCT_BULK: '/specifications/product/bulk',
+    PRODUCT_SPECIFICATIONS: (productId: string) => `/specifications/product/${productId}`,
+    PRODUCT_SPECIFICATIONS_GROUPED: (productId: string) => 
+      `/specifications/product/${productId}/grouped`,
+    SPECIFICATION_DETAIL: (id: string) => `/specifications/product/${id}`,
+    DELETE_ALL_PRODUCT_SPECS: (productId: string) => 
+      `/specifications/product/${productId}/all`,
+  },
+  
   ORDERS: {
     BASE: '/orders',
     DETAIL: (id: string) => `/orders/${id}`,

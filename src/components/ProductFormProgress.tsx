@@ -1,69 +1,71 @@
 import { cn } from "@/lib/utils";
 import { ProductDraftSection } from "@/lib/product-draft-utils";
-import { CheckCircle2, Circle } from "lucide-react";
-import { Tooltip } from "./ui/tooltip";
+import { CheckCircle } from "lucide-react";
 
 interface ProductFormProgressProps {
   completedSections: ProductDraftSection[];
   className?: string;
-  showPercentage?: boolean;
 }
 
-export function ProductFormProgress({
+export function ProductFormProgress({ 
   completedSections,
-  className,
-  showPercentage = true,
+  className
 }: ProductFormProgressProps) {
-  const totalSections = 7; // Update if adding more sections
-  const completion = Math.round((completedSections.length / totalSections) * 100);
-  
+  // Define all sections in order
   const sections = [
-    { id: 'basic' as const, label: 'Basic Info' },
-    { id: 'pricing' as const, label: 'Pricing' },
-    { id: 'category' as const, label: 'Categories' },
-    { id: 'images' as const, label: 'Images' },
-    { id: 'variants' as const, label: 'Variants' },
-    { id: 'inventory' as const, label: 'Inventory' },
-    { id: 'seo' as const, label: 'SEO' },
+    { id: 'basic' as ProductDraftSection, name: 'Basic Info' },
+    { id: 'pricing' as ProductDraftSection, name: 'Pricing' },
+    { id: 'category' as ProductDraftSection, name: 'Category' },
+    { id: 'images' as ProductDraftSection, name: 'Images' },
+    { id: 'variants' as ProductDraftSection, name: 'Variants' },
+    { id: 'specifications' as ProductDraftSection, name: 'Specifications' },
+    { id: 'inventory' as ProductDraftSection, name: 'Inventory' },
+    { id: 'seo' as ProductDraftSection, name: 'SEO' }
   ];
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex justify-between items-center mb-1">
-        <h4 className="text-sm font-medium">Form Progress</h4>
-        {showPercentage && (
-          <span className="text-xs font-medium">
-            {completion}% complete
-          </span>
-        )}
-      </div>
-      
-      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-primary transition-all duration-500 ease-out"
-          style={{ width: `${completion}%` }}
-        />
-      </div>
-      
-      <div className="grid grid-cols-7 gap-1 pt-2">
-        {sections.map((section) => {
-          const isComplete = completedSections.includes(section.id);
-          return (
-            <Tooltip key={section.id} content={section.label}>
-              <div className="flex flex-col items-center">
-                {isComplete ? (
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                ) : (
-                  <Circle className="h-4 w-4 text-muted-foreground" />
+    <div className={cn("flex items-center space-x-1 overflow-x-auto pb-2 w-full", className)}>
+      {sections.map((section, index) => {
+        const isCompleted = completedSections.includes(section.id);
+        
+        return (
+          <div key={section.id} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div 
+                className={cn(
+                  "flex items-center justify-center w-6 h-6 rounded-full text-xs border",
+                  isCompleted 
+                    ? "bg-primary text-primary-foreground border-primary" 
+                    : "bg-muted text-muted-foreground border-muted-foreground/20"
                 )}
-                <span className="text-[10px] text-muted-foreground mt-1 hidden md:inline-block">
-                  {section.label}
-                </span>
+              >
+                {isCompleted ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <span>{index + 1}</span>
+                )}
               </div>
-            </Tooltip>
-          );
-        })}
-      </div>
+              <span className={cn(
+                "text-xs mt-1 whitespace-nowrap",
+                isCompleted 
+                  ? "text-primary font-medium" 
+                  : "text-muted-foreground"
+              )}>
+                {section.name}
+              </span>
+            </div>
+            
+            {index < sections.length - 1 && (
+              <div className={cn(
+                "h-[1px] w-4 mx-1",
+                isCompleted && completedSections.includes(sections[index + 1].id)
+                  ? "bg-primary"
+                  : "bg-muted-foreground/20"
+              )} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 } 
