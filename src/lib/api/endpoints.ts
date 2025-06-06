@@ -1,0 +1,91 @@
+// API base URL from environment variables
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
+// Centralized endpoint definitions for the e-commerce API
+export const ENDPOINTS = {
+  AUTH: {
+    LOGIN: '/auth/login',
+    ADMIN_LOGIN: '/auth/admin/login',
+    LOGOUT: '/auth/logout',
+    REFRESH: '/auth/refresh',
+    PROFILE: '/auth/me',
+    ADMIN_PROFILE: '/auth/admin/me',
+    CHANGE_PASSWORD: '/auth/change-password',
+  },
+  
+  USERS: {
+    BASE: '/users',
+    DETAIL: (id: string) => `/users/${id}`,
+    ADDRESSES: (userId: string) => `/users/${userId}/addresses`,
+    ADDRESS_DETAIL: (userId: string, addressId: string) => 
+      `/users/${userId}/addresses/${addressId}`,
+  },
+  
+  BRANDS: {
+    BASE: '/brands',
+    DETAIL: (id: string) => `/brands/${id}`,
+  },
+  
+  PRODUCTS: {
+    BASE: '/products',
+    DETAIL: (id: string) => `/products/${id}`,
+    VARIANTS: (productId: string) => `/products/${productId}/variants`,
+    VARIANT_DETAIL: (productId: string, variantId: string) => 
+      `/products/${productId}/variants/${variantId}`,
+    IMAGES: (productId: string) => `/products/${productId}/images`,
+    TAGS: (productId: string) => `/products/${productId}/tags`,
+    DEALS: (productId: string) => `/products/${productId}/deals`,
+    DEAL_DETAIL: (productId: string, dealId: string) => 
+      `/products/${productId}/deals/${dealId}`,
+  },
+  
+  CATEGORIES: {
+    BASE: '/categories',
+    DETAIL: (id: string) => `/categories/${id}`,
+    TREE: '/categories/tree',
+  },
+  
+  TAGS: {
+    BASE: '/tags',
+    DETAIL: (id: string) => `/tags/${id}`,
+  },
+  
+  ORDERS: {
+    BASE: '/orders',
+    DETAIL: (id: string) => `/orders/${id}`,
+    UPDATE_STATUS: (id: string) => `/orders/${id}/status`,
+  },
+  
+  INVENTORY: {
+    BASE: '/inventory',
+    DETAIL: (id: string) => `/inventory/${id}`,
+    LOG: '/inventory/log',
+  },
+  
+  UPLOAD: {
+    IMAGE: '/uploads/image',
+  },
+  
+  DEALS: {
+    BASE: '/deals',
+    DETAIL: (id: string) => `/deals/${id}`,
+    PRODUCTS: (dealId: string) => `/deals/${dealId}/products`,
+    PRODUCT_DETAIL: (dealId: string, productId: string) => 
+      `/deals/${dealId}/products/${productId}`,
+  },
+  
+  COUPONS: {
+    BASE: '/coupons',
+    DETAIL: (id: string) => `/coupons/${id}`,
+    BY_CODE: (code: string) => `/coupons/code/${code}`,
+    VALIDATE: '/coupons/validate',
+    APPLY: '/coupons/apply',
+  },
+  
+  ANALYTICS: {
+    DASHBOARD: '/analytics/dashboard',
+    SALES: '/analytics/sales',
+    PRODUCTS: '/analytics/products',
+    CUSTOMERS: '/analytics/customers',
+  },
+}; 

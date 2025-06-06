@@ -14,6 +14,8 @@ import {
   Tag,
   Users,
   FileText,
+  Archive,
+  Tags
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -32,16 +34,28 @@ const routes = [
     color: "text-violet-500",
   },
   {
+    label: "Brands",
+    icon: Archive,
+    href: "/brands",
+    color: "text-indigo-500",
+  },
+  {
+    label: "Categories",
+    icon: Layers,
+    href: "/categories",
+    color: "text-blue-500",
+  },
+  {
+    label: "Tags",
+    icon: Tags,
+    href: "/tags",
+    color: "text-teal-500",
+  },
+  {
     label: "Products",
     icon: Package,
     href: "/products",
     color: "text-pink-700",
-  },
-  {
-    label: "Orders",
-    icon: ShoppingCart,
-    href: "/orders",
-    color: "text-orange-500",
   },
   {
     label: "Inventory",
@@ -50,10 +64,10 @@ const routes = [
     color: "text-emerald-500",
   },
   {
-    label: "Categories",
-    icon: Layers,
-    href: "/categories",
-    color: "text-blue-500",
+    label: "Orders",
+    icon: ShoppingCart,
+    href: "/orders",
+    color: "text-orange-500",
   },
   {
     label: "Deals",

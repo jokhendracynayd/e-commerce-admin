@@ -3,165 +3,70 @@
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Package, Tag, BarChart2, Star } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Edit, 
+  Package, 
+  Tag, 
+  BarChart2, 
+  Star, 
+  AlertCircle,
+  Trash2,
+  Calendar,
+  DollarSign, 
+  Info,
+  Eye,
+  ShoppingBag,
+  Layers,
+  X
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-
-// This is a mock function to simulate fetching product data by ID
-async function getProductById(id: string) {
-  const products = [
-    {
-      id: "1",
-      name: "Premium Headphones",
-      category: "Electronics",
-      price: 199.99,
-      stock: 45,
-      status: "In Stock",
-      description: "High-quality noise-cancelling headphones with premium sound quality.",
-      sku: "TECH-001",
-      images: ["headphones.jpg"],
-      dimensions: { length: 8, width: 6, height: 3 },
-      weight: 0.65,
-      features: ["Noise Cancellation", "Bluetooth 5.0", "40h Battery Life"],
-      brand: "AudioTech",
-      ratings: { 
-        average: 4.5,
-        count: 128,
-        distribution: [5, 8, 12, 45, 58]
-      },
-      related: ["2", "4"]
-    },
-    {
-      id: "2",
-      name: "Ergonomic Chair",
-      category: "Furniture",
-      price: 249.99,
-      stock: 12,
-      status: "In Stock",
-      description: "Comfortable ergonomic chair with adjustable height and lumbar support.",
-      sku: "FURN-002",
-      images: ["chair.jpg"],
-      dimensions: { length: 24, width: 22, height: 42 },
-      weight: 15.2,
-      features: ["Adjustable Height", "Lumbar Support", "Breathable Mesh"],
-      brand: "ComfortPlus",
-      ratings: { 
-        average: 4.2,
-        count: 75,
-        distribution: [3, 5, 9, 25, 33]
-      },
-      related: ["5"]
-    },
-    {
-      id: "3",
-      name: "Smartphone X",
-      category: "Electronics",
-      price: 899.99,
-      stock: 0,
-      status: "Out of Stock",
-      description: "Latest smartphone with high-end features and advanced camera system.",
-      sku: "TECH-003",
-      images: ["smartphone.jpg"],
-      dimensions: { length: 6, width: 3, height: 0.4 },
-      weight: 0.18,
-      features: ["5G", "Triple Camera", "AMOLED Display"],
-      brand: "TechGiant",
-      ratings: { 
-        average: 4.7,
-        count: 203,
-        distribution: [4, 7, 15, 56, 121]
-      },
-      related: ["1", "4"]
-    },
-    {
-      id: "4",
-      name: "Fitness Watch",
-      category: "Wearables",
-      price: 129.99,
-      stock: 8,
-      status: "Low Stock",
-      description: "Smart fitness tracker with heart rate monitoring and GPS.",
-      sku: "WEAR-004",
-      images: ["watch.jpg"],
-      dimensions: { length: 1.6, width: 1.4, height: 0.5 },
-      weight: 0.05,
-      features: ["Heart Rate Monitor", "GPS", "Water Resistant"],
-      brand: "FitLife",
-      ratings: { 
-        average: 4.1,
-        count: 92,
-        distribution: [5, 8, 12, 37, 30]
-      },
-      related: ["1", "3"]
-    },
-    {
-      id: "5",
-      name: "Designer Backpack",
-      category: "Fashion",
-      price: 79.99,
-      stock: 23,
-      status: "In Stock",
-      description: "Stylish and durable backpack with multiple compartments.",
-      sku: "FASH-005",
-      images: ["backpack.jpg"],
-      dimensions: { length: 18, width: 12, height: 6 },
-      weight: 1.2,
-      features: ["Water Resistant", "Laptop Compartment", "Adjustable Straps"],
-      brand: "UrbanGear",
-      ratings: { 
-        average: 4.3,
-        count: 67,
-        distribution: [2, 5, 9, 21, 30]
-      },
-      related: ["2"]
-    },
-  ];
-
-  // Simulate async behavior with a small delay
-  await new Promise(resolve => setTimeout(resolve, 10));
-  return products.find(product => product.id === id) || products[0];
-}
-
-// Define a type for the product
-type Product = {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  status: string;
-  description: string;
-  sku: string;
-  images: string[];
-  dimensions: { length: number; width: number; height: number };
-  weight: number;
-  features: string[];
-  brand: string;
-  ratings: { 
-    average: number;
-    count: number;
-    distribution: number[];
-  };
-  related: string[];
-};
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { productsApi, Product, ProductImage } from "@/lib/api/products-api";
+import { format } from "date-fns";
+import { Separator } from "@/components/ui/separator";
+import Image from "next/image";
+import { getCurrencySymbol } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function ProductViewPage() {
   // Use the useParams hook to get the ID parameter from the URL
   const params = useParams();
+  const router = useRouter();
   const productId = params.id as string;
   
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<ProductImage | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [imageToDelete, setImageToDelete] = useState<ProductImage | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const productData = await getProductById(productId);
+        setLoading(true);
+        const productData = await productsApi.getProductById(productId);
+        console.log("Product data:", productData);
         setProduct(productData);
-      } catch (error) {
+        setError(null);
+      } catch (error: any) {
         console.error("Error fetching product:", error);
+        setError(error.message || "Failed to load product");
       } finally {
         setLoading(false);
       }
@@ -170,11 +75,96 @@ export default function ProductViewPage() {
     fetchProduct();
   }, [productId]);
 
+  const handleImagePreview = (image: ProductImage) => {
+    setPreviewImage(image);
+  };
+
+  const handleClosePreview = () => {
+    setPreviewImage(null);
+  };
+
+  const handleDeleteImage = async () => {
+    if (!imageToDelete || !imageToDelete.id || !product) return;
+    
+    try {
+      setDeleteLoading(true);
+      await productsApi.deleteProductImage(productId, imageToDelete.id);
+      
+      // Update the product state by filtering out the deleted image
+      setProduct({
+        ...product,
+        images: product.images?.filter(img => img.id !== imageToDelete.id) || []
+      });
+      
+      toast.success("Image deleted successfully");
+    } catch (error: any) {
+      console.error("Error deleting image:", error);
+      toast.error(error.message || "Failed to delete image");
+    } finally {
+      setDeleteLoading(false);
+      setImageToDelete(null);
+      setDeleteDialogOpen(false);
+    }
+  };
+
+  const confirmDeleteImage = (image: ProductImage) => {
+    setImageToDelete(image);
+    setDeleteDialogOpen(true);
+  };
+
+  // Get status badge for product
+  const getStatusBadge = (product: Product) => {
+    if (!product.isActive) {
+      return (
+        <Badge variant="destructive">Inactive</Badge>
+      );
+    }
+    
+    if (product.stockQuantity <= 0) {
+      return (
+        <Badge variant="destructive">Out of Stock</Badge>
+      );
+    }
+    
+    if (product.stockQuantity < 10) {
+      return (
+        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+          Low Stock
+        </Badge>
+      );
+    }
+    
+    return (
+      <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">In Stock</Badge>
+    );
+  };
+
   if (loading) {
     return (
       <MainLayout>
         <div className="flex h-full items-center justify-center">
-          <p>Loading product details...</p>
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <p>Loading product details...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col h-full items-center justify-center gap-2">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <p className="text-destructive font-medium">{error}</p>
+          <Button 
+            variant="outline" 
+            className="mt-2"
+            onClick={() => router.push('/products')}
+          >
+            Back to Products
+          </Button>
         </div>
       </MainLayout>
     );
@@ -198,202 +188,522 @@ export default function ProductViewPage() {
             <Link href="/products" className="rounded-full w-8 h-8 flex items-center justify-center bg-muted hover:bg-muted/80">
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <h1 className="text-3xl font-bold">Product Details</h1>
+            <h1 className="text-3xl font-bold">{product.title}</h1>
+            {getStatusBadge(product)}
+            {product.isFeatured && (
+              <Badge variant="secondary">Featured</Badge>
+            )}
           </div>
-          <Link href={`/products/${productId}`}>
-            <Button>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Product
-            </Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link href={`/products/${productId}/variants/new`}>
+              <Button variant="outline">
+                <Layers className="mr-2 h-4 w-4" />
+                Add Variant
+              </Button>
+            </Link>
+            <Link href={`/products/${productId}/tags`}>
+              <Button variant="outline">
+                <Tag className="mr-2 h-4 w-4" />
+                Manage Tags
+              </Button>
+            </Link>
+            <Link href={`/products/${productId}/deals`}>
+              <Button variant="outline">
+                <DollarSign className="mr-2 h-4 w-4" />
+                Add to Deal
+              </Button>
+            </Link>
+            <Link href={`/products/${productId}`}>
+              <Button>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Product
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
-          <Card className="md:col-span-1">
-            <CardContent className="flex flex-col items-center pt-6">
-              <div className="mb-4 w-full aspect-square bg-muted rounded-md flex items-center justify-center">
-                <Package className="h-16 w-16 text-muted-foreground" />
-                <p className="text-muted-foreground">{product.images[0]}</p>
-              </div>
-              
-              {product.images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2 w-full">
-                  {product.images.slice(0, 4).map((image, index) => (
-                    <div key={index} className="aspect-square bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
-                      {image}
+        <Tabs defaultValue="details">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="images">Images ({product.images?.length || 0})</TabsTrigger>
+            <TabsTrigger value="variants">Variants ({product.variants?.length || 0})</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews ({product.reviews?.length || 0})</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="details" className="space-y-5">
+            <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-2xl">{product.title}</CardTitle>
+                      <div className="flex gap-2 mt-1">
+                        {product.category && (
+                          <Badge variant="outline">{product.category.name}</Badge>
+                        )}
+                        {product.brand && (
+                          <Badge variant="outline">{product.brand.name}</Badge>
+                        )}
+                        <Badge variant="outline">{product.visibility}</Badge>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-6 w-full">
-                <Badge className={`w-full text-center justify-center py-1.5 ${
-                  product.status === "In Stock" 
-                    ? "bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300" 
-                    : product.status === "Low Stock"
-                    ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300"
-                    : "bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300"
-                }`}>
-                  {product.status} - {product.stock} units
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-2xl">{product.name}</CardTitle>
-                  <div className="flex gap-2 mt-1">
-                    <Badge variant="outline">{product.category}</Badge>
-                    <Badge variant="outline">{product.brand}</Badge>
+                    <div className="text-2xl font-bold">
+                      {product.discountPrice ? (
+                        <div>
+                          <span className="line-through text-muted-foreground text-lg">
+                            {getCurrencySymbol(product.currency || 'USD')}{parseFloat(product.price.toString()).toFixed(2)}
+                          </span>
+                          <span className="ml-2 text-green-600 font-medium">
+                            {getCurrencySymbol(product.currency || 'USD')}{parseFloat(product.discountPrice.toString()).toFixed(2)}
+                          </span>
+                        </div>
+                      ) : (
+                        <span>{getCurrencySymbol(product.currency || 'USD')}{parseFloat(product.price.toString()).toFixed(2)}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div className="text-2xl font-bold">${product.price.toFixed(2)}</div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <h3 className="text-lg font-medium mb-2">Product Details</h3>
-                <p>{product.description}</p>
-              </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {product.description && (
+                    <div>
+                      <h3 className="text-lg font-medium mb-2">Product Description</h3>
+                      <p>{product.description}</p>
+                    </div>
+                  )}
+                  
+                  {product.shortDescription && (
+                    <div>
+                      <h3 className="text-lg font-medium mb-2">Short Description</h3>
+                      <p>{product.shortDescription}</p>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="border rounded-md p-3">
+                      <p className="text-xs text-muted-foreground">SKU</p>
+                      <p className="font-medium">{product.sku}</p>
+                    </div>
+                    <div className="border rounded-md p-3">
+                      <p className="text-xs text-muted-foreground">Stock</p>
+                      <p className="font-medium">{product.stockQuantity} units</p>
+                    </div>
+                    {product.weight && (
+                      <div className="border rounded-md p-3">
+                        <p className="text-xs text-muted-foreground">Weight</p>
+                        <p className="font-medium">{product.weight} {product.dimensions?.unit || 'kg'}</p>
+                      </div>
+                    )}
+                    {product.dimensions && (
+                      <div className="border rounded-md p-3">
+                        <p className="text-xs text-muted-foreground">Dimensions</p>
+                        <p className="font-medium">
+                          {product.dimensions.length}" × {product.dimensions.width}" × {product.dimensions.height}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center text-muted-foreground">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        <span className="text-sm">Created</span>
+                      </div>
+                      <p className="text-sm">{format(new Date(product.createdAt), 'MMM d, yyyy')}</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center text-muted-foreground">
+                        <Calendar className="h-4 w-4 mr-1" />
+                        <span className="text-sm">Last Updated</span>
+                      </div>
+                      <p className="text-sm">{format(new Date(product.updatedAt), 'MMM d, yyyy')}</p>
+                    </div>
+                    {product.averageRating !== undefined && product.averageRating > 0 && (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center text-muted-foreground">
+                          <Star className="h-4 w-4 mr-1" />
+                          <span className="text-sm">Rating</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="text-sm font-medium mr-1">{product.averageRating.toFixed(1)}</span>
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} className={`h-3 w-3 ${i < Math.round(product.averageRating || 0) ? "fill-primary text-primary" : "text-gray-300"}`} />
+                            ))}
+                          </div>
+                          <span className="text-xs text-muted-foreground ml-1">({product.reviewCount || 0})</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
               
-              <div>
-                <h3 className="text-lg font-medium mb-2">Features</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  {product.features.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="border rounded-md p-3">
-                  <p className="text-xs text-muted-foreground">SKU</p>
-                  <p className="font-medium">{product.sku}</p>
+              <Card className="md:col-span-1">
+                <CardHeader>
+                  <CardTitle>Product Images</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {product.images && product.images.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="aspect-square bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                        <Image 
+                          src={product.images[0].imageUrl} 
+                          alt={product.images[0].altText || product.title}
+                          width={300}
+                          height={300}
+                          className="object-cover"
+                        />
+                      </div>
+                      
+                      {product.images.length > 1 && (
+                        <div className="grid grid-cols-4 gap-2">
+                          {product.images.slice(1, 5).map((image) => (
+                            <div 
+                              key={image.id} 
+                              className="aspect-square bg-muted rounded-md flex items-center justify-center overflow-hidden"
+                            >
+                              <Image 
+                                src={image.imageUrl} 
+                                alt={image.altText || product.title}
+                                width={80}
+                                height={80}
+                                className="object-cover"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="aspect-square bg-muted rounded-md flex flex-col items-center justify-center">
+                      <Package className="h-16 w-16 text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No images available</p>
+                      <Link href={`/products/${productId}`} className="mt-4">
+                        <Button size="sm" variant="outline">Add Images</Button>
+                      </Link>
+                    </div>
+                  )}
+                  
+                  <div className="mt-6">
+                    <h3 className="text-sm font-medium mb-2">Meta Information</h3>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Meta Title:</span>
+                        <p>{product.metaTitle || product.title}</p>
+                      </div>
+                      {product.metaDescription && (
+                        <div>
+                          <span className="text-muted-foreground">Meta Description:</span>
+                          <p>{product.metaDescription}</p>
+                        </div>
+                      )}
+                      {product.metaKeywords && (
+                        <div>
+                          <span className="text-muted-foreground">Meta Keywords:</span>
+                          <p>{product.metaKeywords}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Tags Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tag className="h-5 w-5" />
+                    Tags
+                  </CardTitle>
                 </div>
-                <div className="border rounded-md p-3">
-                  <p className="text-xs text-muted-foreground">Weight</p>
-                  <p className="font-medium">{product.weight} lb</p>
-                </div>
-                <div className="border rounded-md p-3">
-                  <p className="text-xs text-muted-foreground">Dimensions</p>
-                  <p className="font-medium">{product.dimensions.length}" × {product.dimensions.width}" × {product.dimensions.height}"</p>
-                </div>
-                <div className="border rounded-md p-3">
-                  <p className="text-xs text-muted-foreground">Brand</p>
-                  <p className="font-medium">{product.brand}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart2 className="h-5 w-5" />
-                Sales Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Last 30 days</span>
-                  <span className="font-medium">28 units</span>
-                </div>
-                <div className="h-[120px] flex items-end gap-1">
-                  {[12, 8, 15, 6, 10, 18, 14].map((value, index) => (
-                    <div 
-                      key={index} 
-                      className="flex-1 bg-primary rounded-t-sm" 
-                      style={{ height: `${(value / 20) * 100}%` }}
-                    ></div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>May 1</span>
-                  <span>May 7</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" />
-                Customer Ratings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold">{product.ratings.average}</div>
-                  <div className="flex mt-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className={`h-4 w-4 ${i < Math.round(product.ratings.average) ? "fill-primary text-primary" : "text-gray-300"}`} />
+                <Link href={`/products/${productId}/tags`}>
+                  <Button size="sm" variant="outline">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Manage Tags
+                  </Button>
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {product.tags && product.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {product.tags.map((tag) => (
+                      <Badge key={tag.id} variant="outline">
+                        {tag.name}
+                      </Badge>
                     ))}
                   </div>
-                  <div className="text-sm text-muted-foreground mt-1">{product.ratings.count} ratings</div>
-                </div>
-                
-                <div className="flex-1">
-                  {[5, 4, 3, 2, 1].map((star) => {
-                    const count = product.ratings.distribution[5 - star];
-                    const percentage = (count / product.ratings.count) * 100;
-                    
-                    return (
-                      <div key={star} className="flex items-center gap-2">
-                        <div className="w-12 text-sm">{star} star</div>
-                        <div className="flex-1 h-2 bg-muted rounded-full">
-                          <div 
-                            className="h-2 bg-primary rounded-full" 
-                            style={{ width: `${percentage}%` }}
-                          ></div>
+                ) : (
+                  <p className="text-muted-foreground">No tags assigned to this product</p>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Deals Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5" />
+                  Special Deals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {product.deals && product.deals.length > 0 ? (
+                  <div className="space-y-4">
+                    {product.deals.map((deal) => (
+                      <div key={deal.id} className="flex justify-between items-center p-3 border rounded-md">
+                        <div>
+                          <h4 className="font-medium">{deal.dealType}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(deal.startTime), 'MMM d, yyyy')} - {format(new Date(deal.endTime), 'MMM d, yyyy')}
+                          </p>
                         </div>
-                        <div className="w-9 text-xs text-right">{count}</div>
+                        <Badge>{deal.discount}% OFF</Badge>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-3">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Tag className="h-5 w-5" />
-                Related Products
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
-                {product.related.map((relatedId) => {
-                  const relatedProduct = [
-                    { id: "1", name: "Premium Headphones", price: 199.99 },
-                    { id: "2", name: "Ergonomic Chair", price: 249.99 },
-                    { id: "3", name: "Smartphone X", price: 899.99 },
-                    { id: "4", name: "Fitness Watch", price: 129.99 },
-                    { id: "5", name: "Designer Backpack", price: 79.99 },
-                  ].find(p => p.id === relatedId);
-                  
-                  return relatedProduct ? (
-                    <Link key={relatedId} href={`/products/${relatedId}/view`} className="block group">
-                      <div className="aspect-square bg-muted rounded-md flex items-center justify-center mb-2 group-hover:bg-muted/80">
-                        <Package className="h-8 w-8 text-muted-foreground" />
-                      </div>
-                      <h4 className="text-sm font-medium truncate group-hover:text-primary">{relatedProduct.name}</h4>
-                      <p className="text-sm text-muted-foreground">${relatedProduct.price.toFixed(2)}</p>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <p className="text-muted-foreground">No active deals for this product</p>
+                    <Link href={`/products/${productId}/deals`}>
+                      <Button size="sm" variant="outline" className="mt-2">
+                        Add to Deal
+                      </Button>
                     </Link>
-                  ) : null;
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="images">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Product Images</CardTitle>
+                  <Link href={`/products/${productId}?tab=images`}>
+                    <Button size="sm">
+                      <Edit className="mr-2 h-4 w-4" />
+                      Manage Images
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {product.images && product.images.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {product.images.map((image) => (
+                      <div key={image.id} className="relative group">
+                        <div className="aspect-square bg-muted rounded-md flex items-center justify-center overflow-hidden">
+                          <Image 
+                            src={image.imageUrl} 
+                            alt={image.altText || product.title}
+                            width={200}
+                            height={200}
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute inset-0 bg-black/50 rounded-md flex items-center justify-center">
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0 text-white"
+                              onClick={() => handleImagePreview(image)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-8 w-8 p-0 text-white hover:text-red-500" 
+                              onClick={() => confirmDeleteImage(image)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Position: {image.position}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+                    <Package className="h-16 w-16 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">No images available for this product</p>
+                    <Link href={`/products/${productId}?tab=images`}>
+                      <Button className="mt-4">Add Images</Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="variants">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Product Variants</CardTitle>
+                  <Link href={`/products/${productId}/variants/new`}>
+                    <Button size="sm">
+                      <Layers className="mr-2 h-4 w-4" />
+                      Add Variant
+                    </Button>
+                  </Link>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {product.variants && product.variants.length > 0 ? (
+                  <div className="space-y-4">
+                    {product.variants.map((variant) => (
+                      <div key={variant.id} className="p-4 border rounded-md">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-medium">{variant.variantName}</h3>
+                            <p className="text-sm text-muted-foreground">SKU: {variant.sku}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">{getCurrencySymbol(product.currency || 'USD')}{parseFloat(variant.price.toString()).toFixed(2)}</p>
+                            <p className="text-sm text-muted-foreground">Stock: {variant.stockQuantity}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+                    <Layers className="h-16 w-16 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">No variants available for this product</p>
+                    <Link href={`/products/${productId}/variants/new`}>
+                      <Button className="mt-4">Add Variant</Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="reviews">
+            <Card>
+              <CardHeader>
+                <CardTitle>Customer Reviews</CardTitle>
+                <CardDescription>
+                  {product.reviewCount 
+                    ? `${product.reviewCount} review${product.reviewCount !== 1 ? 's' : ''} with an average rating of ${product.averageRating?.toFixed(1) || '0.0'}`
+                    : 'No reviews yet for this product'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {product.reviews && product.reviews.length > 0 ? (
+                  <div className="space-y-6">
+                    {product.reviews.map((review) => (
+                      <div key={review.id} className="border-b pb-4 last:border-b-0">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="flex items-center">
+                              <div className="flex">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star key={i} className={`h-4 w-4 ${i < review.rating ? "fill-primary text-primary" : "text-gray-300"}`} />
+                                ))}
+                              </div>
+                              <span className="ml-2 font-medium">
+                                {review.user.firstName} {review.user.lastName}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {format(new Date(review.createdAt), 'MMMM d, yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-sm">{review.comment}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+                    <Star className="h-16 w-16 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">No reviews available for this product</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="relative max-w-4xl max-h-[90vh] w-full bg-background rounded-lg shadow-lg p-4 overflow-hidden">
+            <Button 
+              className="absolute right-2 top-2 rounded-full w-8 h-8 p-0 z-10"
+              onClick={handleClosePreview}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex flex-col h-full">
+              <div className="flex-1 flex items-center justify-center overflow-hidden">
+                <Image 
+                  src={previewImage.imageUrl}
+                  alt={previewImage.altText || "Product image"}
+                  width={800}
+                  height={800}
+                  className="max-h-[80vh] object-contain"
+                />
+              </div>
+              
+              <div className="pt-4 space-y-2">
+                {previewImage.altText && (
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium">Alt Text:</span> {previewImage.altText}
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium">Position:</span> {previewImage.position}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Product Image</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this image? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteImage}
+              disabled={deleteLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteLoading ? (
+                <>
+                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 } 

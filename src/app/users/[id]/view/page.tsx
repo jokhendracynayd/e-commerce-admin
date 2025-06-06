@@ -6,75 +6,31 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Edit, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-
-// This is a mock function to simulate fetching user data by ID
-async function getUserById(id: string) {
-  const users = [
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john@example.com",
-      role: "Admin",
-      status: "Active",
-      phone: "+1 (555) 123-4567",
-      address: "123 Main St, City, Country",
-      joinDate: "2023-01-15",
-      lastLogin: "2023-08-15 09:45",
-      orders: 12,
-      totalSpent: 2450.75,
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      role: "Manager",
-      status: "Active",
-      phone: "+1 (555) 234-5678",
-      address: "456 Oak St, Town, Country",
-      joinDate: "2023-02-20",
-      lastLogin: "2023-08-14 14:22",
-      orders: 8,
-      totalSpent: 1580.25,
-    },
-    // Other users would be here in a real application
-  ];
-
-  // Simulate async behavior with a small delay
-  await new Promise(resolve => setTimeout(resolve, 10));
-  return users.find(user => user.id === id) || users[0];
-}
-
-// Define a type for the user
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  phone: string;
-  address: string;
-  joinDate: string;
-  lastLogin: string;
-  orders: number;
-  totalSpent: number;
-};
+import { useParams, useRouter } from "next/navigation";
+import { usersApi, User } from "@/lib/api/users-api";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
 
 export default function UserViewPage() {
   // Use the useParams hook to get the ID parameter from the URL
   const params = useParams();
   const userId = params.id as string;
+  const router = useRouter();
   
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const userData = await getUserById(userId);
+        setLoading(true);
+        const userData = await usersApi.getUserById(userId);
         setUser(userData);
-      } catch (error) {
+        setError(null);
+      } catch (error: any) {
         console.error("Error fetching user:", error);
+        setError(error.message || "Failed to load user details");
       } finally {
         setLoading(false);
       }
@@ -83,11 +39,45 @@ export default function UserViewPage() {
     fetchUser();
   }, [userId]);
 
+  // Format date for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy');
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
+  // Format datetime for display
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
   if (loading) {
     return (
       <MainLayout>
         <div className="flex h-full items-center justify-center">
-          <p>Loading user details...</p>
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+            <p>Loading user details...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="flex h-full flex-col items-center justify-center gap-4">
+          <p className="text-destructive text-lg">Error: {error}</p>
+          <Button onClick={() => router.push('/users')}>Back to Users</Button>
         </div>
       </MainLayout>
     );
@@ -96,8 +86,9 @@ export default function UserViewPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="flex h-full items-center justify-center">
-          <p>User not found</p>
+        <div className="flex h-full flex-col items-center justify-center gap-4">
+          <p className="text-lg">User not found</p>
+          <Button onClick={() => router.push('/users')}>Back to Users</Button>
         </div>
       </MainLayout>
     );
@@ -127,27 +118,29 @@ export default function UserViewPage() {
               <CardTitle>Profile</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center">
-              <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-4">
-                <UserRound className="h-12 w-12 text-muted-foreground" />
+              <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center mb-4 overflow-hidden">
+                {user.profileImage ? (
+                  <img src={user.profileImage} alt={`${user.firstName} ${user.lastName}`} className="w-full h-full object-cover" />
+                ) : (
+                  <UserRound className="h-12 w-12 text-muted-foreground" />
+                )}
               </div>
-              <h2 className="text-xl font-bold">{user.name}</h2>
+              <h2 className="text-xl font-bold">{user.firstName} {user.lastName}</h2>
               <p className="text-muted-foreground">{user.email}</p>
-              <div className="mt-2">
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium 
-                  ${
-                    user.status === "Active" 
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" 
-                      : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                  }`}>
+              <div className="mt-2 flex gap-2">
+                <Badge variant={user.status === "ACTIVE" ? "secondary" : "destructive"} className={user.status === "ACTIVE" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : ""}>
                   {user.status}
-                </span>
+                </Badge>
+                <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
+                  {user.role}
+                </Badge>
               </div>
             </CardContent>
           </Card>
 
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>User Information</CardTitle>
+              <CardTitle>Personal Information</CardTitle>
               <CardDescription>
                 Detailed user profile information
               </CardDescription>
@@ -155,80 +148,66 @@ export default function UserViewPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Role</h3>
-                  <p>{user.role}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Join Date</h3>
-                  <p>{user.joinDate}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
+                  <p>{user.email}</p>
+                  <span className={`text-xs ${user.isEmailVerified ? 'text-green-600' : 'text-amber-600'}`}>
+                    {user.isEmailVerified ? 'Verified' : 'Not Verified'}
+                  </span>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Phone</h3>
-                  <p>{user.phone}</p>
+                  <p>{user.phone || 'Not provided'}</p>
+                  {user.phone && (
+                    <span className={`text-xs ${user.isPhoneVerified ? 'text-green-600' : 'text-amber-600'}`}>
+                      {user.isPhoneVerified ? 'Verified' : 'Not Verified'}
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Last Login</h3>
-                  <p>{user.lastLogin}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">Gender</h3>
+                  <p>{user.gender || 'Not specified'}</p>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Date of Birth</h3>
+                  <p>{user.dateOfBirth ? formatDate(user.dateOfBirth) : 'Not provided'}</p>
                 </div>
                 <div className="md:col-span-2">
-                  <h3 className="text-sm font-medium text-muted-foreground">Address</h3>
-                  <p>{user.address}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">Bio</h3>
+                  <p className="whitespace-pre-wrap">{user.bio || 'No bio provided'}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="md:col-span-3">
             <CardHeader>
-              <CardTitle>Activity</CardTitle>
+              <CardTitle>Account Information</CardTitle>
               <CardDescription>
-                User activity information
+                User account details and activity
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-y-4">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Orders Placed</h3>
-                  <p className="text-2xl font-bold">{user.orders}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">Account Status</h3>
+                  <Badge variant={user.status === "ACTIVE" ? "secondary" : "destructive"} className={`mt-1 ${user.status === "ACTIVE" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : ""}`}>
+                    {user.status}
+                  </Badge>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Total Spent</h3>
-                  <p className="text-2xl font-bold">${user.totalSpent.toFixed(2)}</p>
+                  <h3 className="text-sm font-medium text-muted-foreground">Role</h3>
+                  <Badge variant={user.role === "ADMIN" ? "default" : "secondary"} className="mt-1">
+                    {user.role}
+                  </Badge>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Joined On</h3>
+                  <p>{formatDate(user.createdAt)}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Last Login</h3>
-                  <p>{user.lastLogin}</p>
+                  <p>{user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Never'}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>
-                Last 5 orders placed by user
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between border-b pb-2 last:border-0">
-                    <div>
-                      <p className="font-medium">Order #{user.id}0{i + 1}</p>
-                      <p className="text-sm text-muted-foreground">{new Date(Date.now() - (i * 7 * 24 * 60 * 60 * 1000)).toISOString().split('T')[0]}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">${(Math.random() * 500 + 50).toFixed(2)}</p>
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                        Completed
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4">
-                <Button variant="outline" size="sm" className="w-full">View All Orders</Button>
               </div>
             </CardContent>
           </Card>

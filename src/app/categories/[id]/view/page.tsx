@@ -2,142 +2,56 @@
 
 import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Tag, Layers, FolderPlus } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Pencil, Trash } from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { categoriesApi, CategoryDetail } from "@/lib/api/categories-api";
 
-// Mock function to get category by ID
-async function getCategoryById(id: string) {
-  const categories = [
-    {
-      id: "cat-1",
-      name: "Electronics",
-      slug: "electronics",
-      description: "Electronic devices and accessories",
-      featured: true,
-      metaTitle: "Electronics - Shop the latest devices",
-      metaDescription: "Browse our range of electronic devices, gadgets, and accessories",
-      parent: null,
-      image: "/images/categories/electronics.jpg",
-      productCount: 124,
-      subcategories: [
-        { id: "subcat-1", name: "Smartphones", slug: "smartphones", products: 45 },
-        { id: "subcat-2", name: "Laptops", slug: "laptops", products: 32 },
-        { id: "subcat-3", name: "Audio", slug: "audio", products: 28 },
-        { id: "subcat-4", name: "Accessories", slug: "accessories", products: 19 },
-        { id: "subcat-5", name: "Cameras", slug: "cameras", products: 12 }
-      ],
-      topProducts: [
-        { id: "prod-1", name: "iPhone 14 Pro", price: 999.99, stock: 45, rating: 4.8 },
-        { id: "prod-2", name: "MacBook Air M2", price: 1199.99, stock: 23, rating: 4.9 },
-        { id: "prod-3", name: "Samsung Galaxy S23", price: 899.99, stock: 38, rating: 4.7 }
-      ]
-    },
-    {
-      id: "cat-2",
-      name: "Clothing",
-      slug: "clothing",
-      description: "Men's, women's, and children's apparel",
-      featured: true,
-      metaTitle: "Clothing - Fashion for everyone",
-      metaDescription: "Find the latest trends in men's, women's, and children's fashion",
-      parent: null,
-      image: "/images/categories/clothing.jpg",
-      productCount: 89,
-      subcategories: [
-        { id: "subcat-6", name: "Men's", slug: "mens", products: 37 },
-        { id: "subcat-7", name: "Women's", slug: "womens", products: 42 },
-        { id: "subcat-8", name: "Children's", slug: "childrens", products: 10 }
-      ],
-      topProducts: [
-        { id: "prod-4", name: "Men's Cotton T-Shirt", price: 19.99, stock: 120, rating: 4.5 },
-        { id: "prod-5", name: "Women's Casual Dress", price: 49.99, stock: 35, rating: 4.6 },
-        { id: "prod-6", name: "Kid's Denim Jeans", price: 29.99, stock: 42, rating: 4.4 }
-      ]
-    }
-  ];
-
-  // Simulate async behavior
-  await new Promise(resolve => setTimeout(resolve, 10));
-  return categories.find(category => category.id === id) || categories[0];
-}
-
-type Subcategory = {
-  id: string;
-  name: string;
-  slug: string;
-  products: number;
-};
-
-type TopProduct = {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-  rating: number;
-};
-
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string;
-  featured: boolean;
-  metaTitle: string;
-  metaDescription: string;
-  parent: string | null;
-  image: string;
-  productCount: number;
-  subcategories: Subcategory[];
-  topProducts: TopProduct[];
-};
-
-export default function CategoryViewPage() {
+export default function CategoryDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const categoryId = params.id as string;
   
-  const [category, setCategory] = useState<Category | null>(null);
+  const [category, setCategory] = useState<CategoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const [error, setError] = useState<string | null>(null);
+  
   useEffect(() => {
     const fetchCategory = async () => {
       try {
-        const categoryData = await getCategoryById(categoryId);
-        setCategory(categoryData as Category);
-      } catch (error) {
+        setLoading(true);
+        const data = await categoriesApi.getCategoryById(categoryId);
+        setCategory(data);
+      } catch (error: any) {
         console.error("Error fetching category:", error);
+        setError(error.message || "Failed to load category details");
       } finally {
         setLoading(false);
       }
     };
     
-    fetchCategory();
+    if (categoryId) {
+      fetchCategory();
+    }
   }, [categoryId]);
-
-  if (loading) {
-    return (
-      <MainLayout>
-        <div className="flex h-full items-center justify-center">
-          <p>Loading category details...</p>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (!category) {
-    return (
-      <MainLayout>
-        <div className="flex h-full items-center justify-center">
-          <p>Category not found</p>
-        </div>
-      </MainLayout>
-    );
-  }
-
+  
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this category? This action cannot be undone.")) {
+      return;
+    }
+    
+    try {
+      await categoriesApi.deleteCategory(categoryId);
+      router.push("/categories");
+    } catch (error: any) {
+      console.error("Error deleting category:", error);
+      alert(`Failed to delete category: ${error.message}`);
+    }
+  };
+  
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
@@ -146,184 +60,165 @@ export default function CategoryViewPage() {
             <Link href="/categories" className="rounded-full w-8 h-8 flex items-center justify-center bg-muted hover:bg-muted/80">
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <h1 className="text-3xl font-bold">Category Details</h1>
+            <h1 className="text-3xl font-bold">
+              {loading ? "Loading..." : category?.name || "Category Details"}
+            </h1>
           </div>
-          <Link href={`/categories/${categoryId}`}>
-            <Button>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Category
-            </Button>
-          </Link>
+          
+          {!loading && category && (
+            <div className="flex gap-2">
+              <Link href={`/categories/${categoryId}`}>
+                <Button variant="outline">
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              </Link>
+              <Button variant="destructive" onClick={handleDelete}>
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
-
-        <div className="flex flex-col md:flex-row gap-5">
-          <Card className="flex-1">
-            <CardHeader className="relative pb-8">
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="text-2xl">{category.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">/{category.slug}</p>
-                </div>
-                {category.featured && (
-                  <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                    Featured
-                  </Badge>
-                )}
-              </div>
-              {category.image && (
-                <div className="absolute right-6 bottom-0 translate-y-1/2 w-16 h-16 border rounded-md overflow-hidden bg-white">
-                  <img 
-                    src={category.image} 
-                    alt={category.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="pt-6">
-                  <h3 className="text-lg font-medium mb-3">Description</h3>
-                  <p>{category.description}</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-3">Statistics</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Tag className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Products</p>
-                          <p className="font-bold text-xl">{category.productCount}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Layers className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Subcategories</p>
-                          <p className="font-bold text-xl">{category.subcategories.length}</p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Tag className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Status</p>
-                          <p className="font-bold text-xl">Active</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-medium mb-3">SEO Information</h3>
-                  <div className="space-y-3">
+        
+        {error ? (
+          <div className="bg-destructive/10 border border-destructive text-destructive p-4 rounded-md">
+            {error}
+            <div className="mt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push("/categories")}
+              >
+                Go Back
+              </Button>
+            </div>
+          </div>
+        ) : loading ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+              <p>Loading category details...</p>
+            </div>
+          </div>
+        ) : category ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="md:col-span-2 space-y-5">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Category Information</CardTitle>
+                  <CardDescription>Detailed information about this category</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Meta Title</p>
-                      <p className="font-medium">{category.metaTitle}</p>
+                      <h3 className="text-sm font-medium text-muted-foreground">Name</h3>
+                      <p className="text-base">{category.name}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Meta Description</p>
-                      <p>{category.metaDescription}</p>
+                      <h3 className="text-sm font-medium text-muted-foreground">Slug</h3>
+                      <p className="text-base">{category.slug}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
+                      <p className="text-base">{new Date(category.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
+                      <p className="text-base">{new Date(category.updatedAt).toLocaleString()}</p>
                     </div>
                   </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-medium">Top Products</h3>
-                    <Link href={`/products?category=${category.id}`}>
-                      <Button variant="outline" size="sm">View All Products</Button>
-                    </Link>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+                    <p className="text-base">{category.description || 'No description provided'}</p>
                   </div>
-                  <div className="space-y-3">
-                    {category.topProducts.map((product) => (
-                      <div key={product.id} className="flex justify-between items-center border-b pb-3 last:border-0">
-                        <div>
-                          <Link href={`/products/${product.id}/view`} className="font-medium hover:underline">
-                            {product.name}
-                          </Link>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex items-center">
-                              <span className="text-yellow-500">★</span>
-                              <span className="text-sm ml-1">{product.rating}</span>
-                            </div>
-                            <span className="text-sm text-muted-foreground">Stock: {product.stock}</span>
+                </CardContent>
+              </Card>
+              
+              {category.children && category.children.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Subcategories</CardTitle>
+                    <CardDescription>Categories that belong to this parent category</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {category.children.map((child) => (
+                        <Link 
+                          key={child.id} 
+                          href={`/categories/${child.id}/view`}
+                          className="p-3 border rounded-md hover:bg-muted flex items-center gap-2"
+                        >
+                          <div className="w-8 h-8 bg-primary/10 rounded-md flex items-center justify-center text-xs">
+                            {child.icon ? (
+                              <img src={child.icon} alt={child.name} className="w-full h-full object-cover" />
+                            ) : (
+                              child.name.substring(0, 2).toUpperCase()
+                            )}
                           </div>
-                        </div>
-                        <span className="font-medium">${product.price.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="md:w-96 space-y-5">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderPlus className="h-5 w-5" />
-                  Subcategories
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {category.subcategories.map((subcategory) => (
-                    <div key={subcategory.id} className="flex items-center justify-between border-b pb-3 last:border-0">
-                      <div>
-                        <p className="font-medium">{subcategory.name}</p>
-                        <p className="text-sm text-muted-foreground">/{subcategory.slug}</p>
-                      </div>
-                      <Badge variant="outline">{subcategory.products} products</Badge>
+                          <span>{child.name}</span>
+                        </Link>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  <Link href={`/categories/${categoryId}/subcategories`}>
-                    <Button variant="outline" className="w-full">
-                      Manage Subcategories
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Related Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button variant="outline" className="w-full justify-start">
-                  <Tag className="mr-2 h-4 w-4" />
-                  Add Product to Category
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <FolderPlus className="mr-2 h-4 w-4" />
-                  Create Subcategory
-                </Button>
-                <Link href={`/categories/${categoryId}/edit`} className="w-full">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Category
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+            
+            <div className="space-y-5">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Category Status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Parent Category</h3>
+                    {category.parent ? (
+                      <Link href={`/categories/${category.parent.id}/view`} className="text-primary hover:underline">
+                        {category.parent.name}
+                      </Link>
+                    ) : (
+                      <Badge variant="outline">Root Category</Badge>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Subcategories</h3>
+                    <p className="text-base">{category.children?.length || 0}</p>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Products</h3>
+                    <p className="text-base">{category.productCount || 0}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {category.icon && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Category Icon</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="border rounded-md aspect-square flex items-center justify-center bg-muted">
+                      <img 
+                        src={category.icon} 
+                        alt={category.name} 
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 break-all">{category.icon}</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-muted p-4 rounded-md">
+            Category not found
+          </div>
+        )}
       </div>
     </MainLayout>
   );

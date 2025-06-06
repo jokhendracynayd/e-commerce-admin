@@ -1,182 +1,169 @@
+"use client";
+
+import { MainLayout } from "@/components/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, PlusCircle, FolderPlus } from "lucide-react";
-import { MainLayout } from "@/components/MainLayout";
+import { FolderTree, PlusCircle, Search } from "lucide-react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-
-const categories = [
-  {
-    id: "cat-1",
-    name: "Electronics",
-    slug: "electronics",
-    products: 124,
-    subcategories: 5,
-    featured: true,
-  },
-  {
-    id: "cat-2",
-    name: "Clothing",
-    slug: "clothing",
-    products: 89,
-    subcategories: 7,
-    featured: true,
-  },
-  {
-    id: "cat-3",
-    name: "Home & Garden",
-    slug: "home-garden",
-    products: 75,
-    subcategories: 4,
-    featured: true,
-  },
-  {
-    id: "cat-4",
-    name: "Sports & Outdoors",
-    slug: "sports-outdoors",
-    products: 62,
-    subcategories: 3,
-    featured: false,
-  },
-  {
-    id: "cat-5",
-    name: "Beauty & Personal Care",
-    slug: "beauty-personal-care",
-    products: 43,
-    subcategories: 2,
-    featured: false,
-  }
-];
-
-const brands = [
-  { id: "b-1", name: "Apple", products: 35, featured: true },
-  { id: "b-2", name: "Samsung", products: 28, featured: true },
-  { id: "b-3", name: "Nike", products: 42, featured: true },
-  { id: "b-4", name: "Adidas", products: 36, featured: false },
-  { id: "b-5", name: "Sony", products: 22, featured: false }
-];
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { categoriesApi, Category } from "@/lib/api/categories-api";
 
 export default function CategoriesPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        const data = await categoriesApi.getCategories();
+        
+        // Ensure data is an array
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else {
+          console.error('Unexpected data format:', data);
+          setCategories([]);
+          setError('Received invalid data format from server');
+        }
+      } catch (error: any) {
+        console.error("Error fetching categories:", error);
+        setCategories([]);
+        setError(error.message || "Failed to load categories");
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+  
+  // Filter categories based on search term
+  const filteredCategories = Array.isArray(categories) 
+    ? categories.filter(category => 
+        category && category.name && category.name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : [];
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Categories & Brands</h1>
-          <div className="flex gap-2">
-            <Link href="/categories/new">
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Category
-              </Button>
-            </Link>
-            <Link href="/brands/new">
-              <Button variant="outline">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Brand
-              </Button>
-            </Link>
-          </div>
+          <h1 className="text-3xl font-bold">Categories</h1>
+          <Link href="/categories/new">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Category
+            </Button>
+          </Link>
         </div>
         
         <Card>
           <CardHeader>
-            <CardTitle>Product Categories</CardTitle>
+            <CardTitle>Manage Categories</CardTitle>
             <CardDescription>
-              Manage your product categories and subcategories
+              View and manage all product categories in your store
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Slug</TableHead>
-                  <TableHead>Products</TableHead>
-                  <TableHead>Subcategories</TableHead>
-                  <TableHead>Featured</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium flex items-center">
-                      <FolderPlus className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <Link href={`/categories/${category.id}/view`} className="hover:underline">
-                        {category.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{category.slug}</TableCell>
-                    <TableCell>{category.products}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {category.subcategories}
-                        <Link href={`/categories/${category.id}/subcategories`}>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 ml-2">
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className={`h-2.5 w-2.5 rounded-full ${category.featured ? "bg-green-500" : "bg-gray-300"}`}></div>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Link href={`/categories/${category.id}/view`} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-                        View
-                      </Link>
-                      <Link href={`/categories/${category.id}`} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-                        Edit
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Brands</CardTitle>
-            <CardDescription>
-              Manage your product brands
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Products</TableHead>
-                  <TableHead>Featured</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {brands.map((brand) => (
-                  <TableRow key={brand.id}>
-                    <TableCell className="font-medium">
-                      <Link href={`/brands/${brand.id}/view`} className="hover:underline">
-                        {brand.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{brand.products}</TableCell>
-                    <TableCell>
-                      <div className={`h-2.5 w-2.5 rounded-full ${brand.featured ? "bg-green-500" : "bg-gray-300"}`}></div>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Link href={`/brands/${brand.id}/view`} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-                        View
-                      </Link>
-                      <Link href={`/brands/${brand.id}`} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
-                        Edit
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="flex items-center justify-between mb-6">
+              <div className="relative w-full max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search categories..."
+                  className="pl-8"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                  <p>Loading categories...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="py-8 text-center text-destructive">
+                <p>{error}</p>
+                <Button 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => window.location.reload()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Parent</TableHead>
+                      <TableHead>Products</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredCategories.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24">
+                          {searchTerm ? "No matching categories found" : "No categories available"}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredCategories.map((category) => (
+                        <TableRow key={category.id}>
+                          <TableCell className="font-medium">
+                            <Link href={`/categories/${category.id}/view`} className="flex items-center gap-2 hover:underline">
+                              <div className="w-8 h-8 bg-muted rounded-md flex items-center justify-center text-xs overflow-hidden">
+                                {category.icon ? (
+                                  <img src={category.icon} alt={category.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <FolderTree className="h-4 w-4" />
+                                )}
+                              </div>
+                              {category.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell>
+                            {category.parentId ? (
+                              <span className="text-muted-foreground">Has Parent</span>
+                            ) : (
+                              <Badge variant="outline">Root Category</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>{category.productCount || 0}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              Active
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Link href={`/categories/${category.id}/view`} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+                              View
+                            </Link>
+                            <Link href={`/categories/${category.id}`} className="text-sm text-blue-600 hover:underline dark:text-blue-400">
+                              Edit
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

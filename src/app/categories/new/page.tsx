@@ -10,8 +10,108 @@ import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { categoriesApi, Category, CreateCategoryDto } from "@/lib/api/categories-api";
 
 export default function NewCategoryPage() {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  
+  // Form data
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+  const [description, setDescription] = useState("");
+  const [icon, setIcon] = useState("");
+  const [parentId, setParentId] = useState("none");
+  const [featured, setFeatured] = useState(false);
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
+  const [showInMenu, setShowInMenu] = useState(true);
+  const [showInFilters, setShowInFilters] = useState(true);
+  const [displayOrder, setDisplayOrder] = useState("0");
+  
+  // Fetch categories for parent dropdown
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const data = await categoriesApi.getCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    
+    fetchCategories();
+  }, []);
+  
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name.trim()) {
+      setError("Category name is required");
+      return;
+    }
+    
+    setSaving(true);
+    setError(null);
+    
+    try {
+      // Prepare data for API (only sending fields the API accepts)
+      const categoryData: CreateCategoryDto = {
+        name: name.trim()
+      };
+      
+      if (description.trim()) {
+        categoryData.description = description.trim();
+      }
+      
+      if (icon.trim()) {
+        categoryData.icon = icon.trim();
+      }
+      
+      if (parentId && parentId !== "none") {
+        categoryData.parentId = parentId;
+      }
+      
+      console.log("Creating category with data:", categoryData);
+      
+      // Call API to create category
+      const result = await categoriesApi.createCategory(categoryData);
+      console.log("Category created successfully:", result);
+      
+      // Redirect to categories list
+      router.push("/categories");
+    } catch (error: any) {
+      console.error("Error creating category:", error);
+      
+      // Extract error message
+      let errorMessage = "Failed to create category";
+      if (error.response) {
+        if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.status === 400) {
+          errorMessage = "Invalid category data";
+        } else if (error.response.status === 401) {
+          errorMessage = "You are not authorized to create categories";
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setSaving(false);
+    }
+  };
+  
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
@@ -23,134 +123,204 @@ export default function NewCategoryPage() {
             <h1 className="text-3xl font-bold">Create New Category</h1>
           </div>
         </div>
+        
+        {error && (
+          <div className="bg-destructive/10 border border-destructive text-destructive p-4 rounded-md mb-4">
+            {error}
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="md:col-span-2 space-y-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
-                <CardDescription>
-                  Enter the basic details of this category
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Category Name</Label>
-                    <Input id="name" placeholder="Enter category name" />
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="md:col-span-2 space-y-5">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Basic Information</CardTitle>
+                  <CardDescription>
+                    Enter the basic details of this category
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Category Name</Label>
+                      <Input 
+                        id="name" 
+                        placeholder="Enter category name" 
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="slug">Slug</Label>
+                      <Input 
+                        id="slug" 
+                        placeholder="enter-slug-here"
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value)}
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        The slug is used in the URL of the category page
+                      </p>
+                    </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="slug">Slug</Label>
-                    <Input id="slug" placeholder="enter-slug-here" />
-                    <p className="text-sm text-muted-foreground">
-                      The slug is used in the URL of the category page
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea 
+                      id="description" 
+                      rows={4} 
+                      placeholder="Enter category description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="featured" 
+                      checked={featured}
+                      onCheckedChange={(checked) => setFeatured(checked as boolean)}
+                    />
+                    <Label htmlFor="featured">Featured Category</Label>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>SEO Information</CardTitle>
+                  <CardDescription>
+                    Optimize category for search engines
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="metaTitle">Meta Title</Label>
+                    <Input 
+                      id="metaTitle" 
+                      placeholder="Enter meta title"
+                      value={metaTitle}
+                      onChange={(e) => setMetaTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="metaDescription">Meta Description</Label>
+                    <Textarea 
+                      id="metaDescription" 
+                      rows={3} 
+                      placeholder="Enter meta description"
+                      value={metaDescription}
+                      onChange={(e) => setMetaDescription(e.target.value)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-5">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Category Image</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="border rounded-md aspect-square flex items-center justify-center bg-muted">
+                    <FolderPlus className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      id="icon"
+                      type="text"
+                      placeholder="Enter icon URL"
+                      value={icon}
+                      onChange={(e) => setIcon(e.target.value)}
+                      className="mb-2"
+                    />
+                    <Button variant="outline" className="w-full" type="button">
+                      Upload Image
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Parent Category</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <Label htmlFor="parentCategory">Parent</Label>
+                    <Select 
+                      value={parentId} 
+                      onValueChange={setParentId}
+                    >
+                      <SelectTrigger id="parentCategory">
+                        <SelectValue placeholder="No parent category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No parent category</SelectItem>
+                        {loadingCategories ? (
+                          <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                        ) : (
+                          categories.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground pt-2">
+                      Setting a parent category will make this a subcategory
                     </p>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" rows={4} placeholder="Enter category description" />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="featured" />
-                  <Label htmlFor="featured">Featured Category</Label>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>SEO Information</CardTitle>
-                <CardDescription>
-                  Optimize category for search engines
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="metaTitle">Meta Title</Label>
-                  <Input id="metaTitle" placeholder="Enter meta title" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="metaDescription">Meta Description</Label>
-                  <Textarea id="metaDescription" rows={3} placeholder="Enter meta description" />
-                </div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Display Options</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="showInMenu" 
+                      checked={showInMenu}
+                      onCheckedChange={(checked) => setShowInMenu(checked as boolean)}
+                    />
+                    <Label htmlFor="showInMenu">Show in Menu</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="showInFilters" 
+                      checked={showInFilters}
+                      onCheckedChange={(checked) => setShowInFilters(checked as boolean)}
+                    />
+                    <Label htmlFor="showInFilters">Show in Filters</Label>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="displayOrder">Display Order</Label>
+                    <Input 
+                      id="displayOrder" 
+                      type="number" 
+                      value={displayOrder}
+                      onChange={(e) => setDisplayOrder(e.target.value)}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          <div className="space-y-5">
-            <Card>
-              <CardHeader>
-                <CardTitle>Category Image</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="border rounded-md aspect-square flex items-center justify-center bg-muted">
-                  <FolderPlus className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full">
-                    Upload Image
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Parent Category</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="parentCategory">Parent</Label>
-                  <Select defaultValue="none">
-                    <SelectTrigger>
-                      <SelectValue placeholder="No parent category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No parent category</SelectItem>
-                      <SelectItem value="cat-1">Electronics</SelectItem>
-                      <SelectItem value="cat-2">Clothing</SelectItem>
-                      <SelectItem value="cat-3">Home & Garden</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground pt-2">
-                    Setting a parent category will make this a subcategory
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Display Options</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="showInMenu" defaultChecked />
-                  <Label htmlFor="showInMenu">Show in Menu</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="showInFilters" defaultChecked />
-                  <Label htmlFor="showInFilters">Show in Filters</Label>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="displayOrder">Display Order</Label>
-                  <Input id="displayOrder" type="number" defaultValue="0" />
-                </div>
-              </CardContent>
-            </Card>
+          <div className="flex justify-end gap-4 mt-4">
+            <Button variant="outline" type="button">
+              <Link href="/categories" className="flex items-center">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={saving}>
+              <Save className="mr-2 h-4 w-4" />
+              {saving ? "Creating..." : "Create Category"}
+            </Button>
           </div>
-        </div>
-
-        <div className="flex justify-end gap-4 mt-4">
-          <Button variant="outline">
-            <Link href="/categories" className="flex items-center">Cancel</Link>
-          </Button>
-          <Button>
-            <Save className="mr-2 h-4 w-4" />
-            Create Category
-          </Button>
-        </div>
+        </form>
       </div>
     </MainLayout>
   );
