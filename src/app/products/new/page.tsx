@@ -37,6 +37,7 @@ import { getSafeImageSrc, truncateText } from "@/lib/utils";
 import { useProductPreview, PreviewProduct } from "@/hooks/useProductPreview";
 import { ProductSpecificationsForm } from "@/components/ProductSpecificationsForm";
 import { CreateProductSpecificationDto } from "@/lib/api/specifications-api";
+import { inventoryService } from '@/services/inventoryService';
 
 // Lazy load components with a different name
 const LazyProductFormProgress = dynamic(
@@ -112,6 +113,9 @@ export default function NewProductPage() {
   // Add state for product specifications
   const [specifications, setSpecifications] = useState<CreateProductSpecificationDto[]>([]);
   
+  // Add a new state variable for lowStockThreshold near the other state variables
+  const [lowStockThreshold, setLowStockThreshold] = useState<string>("5");
+  
   // Available currencies
   const currencies = [
     { code: "INR", name: "Indian Rupee (₹)" },
@@ -167,10 +171,9 @@ export default function NewProductPage() {
         
         const allCategories = flattenCategories(categoryTreeData);
         
-        // Get parent categories (those without parentId)
-        const parentCategories = allCategories.filter(cat => !cat.parentId);
+        // Show all categories
+        setCategories(allCategories);
         
-        setCategories(parentCategories);
         // Store all categories for filtering subcategories later
         setAllCategories(allCategories);
         setBrands(brandsData);
@@ -257,7 +260,8 @@ export default function NewProductPage() {
         sku: variantSku,
         stockQuantity: 0,
         price: Number(price) || 0,  // Use the main product price as default
-        additionalPrice: 0
+        additionalPrice: 0,
+        threshold: Number(lowStockThreshold) || 5  // Use main product threshold as default
       }
     ]);
   };
@@ -539,6 +543,7 @@ export default function NewProductPage() {
       currency,
       variants,
       specifications,
+      lowStockThreshold,
     };
   }, [
     title, description, shortDescription, price, discountPrice,
@@ -546,7 +551,7 @@ export default function NewProductPage() {
     brandId, categoryId, subCategoryId, isActive, isFeatured,
     visibility, metaTitle, metaDescription, metaKeywords,
     productImages, selectedTags, currency, variants, 
-    specifications
+    specifications, lowStockThreshold
   ]);
 
   // Auto-save function
@@ -618,6 +623,7 @@ export default function NewProductPage() {
       
       // Inventory
       if (data.stockQuantity) setStockQuantity(data.stockQuantity.toString());
+      if (data.lowStockThreshold) setLowStockThreshold(data.lowStockThreshold.toString());
       
       // Categories and relations
       if (data.brandId) setBrandId(data.brandId);
@@ -686,7 +692,7 @@ export default function NewProductPage() {
     brandId, categoryId, subCategoryId, isActive, isFeatured,
     visibility, metaTitle, metaDescription, metaKeywords,
     productImages, selectedTags, currency, variants,
-    specifications,
+    specifications, lowStockThreshold,
     autoSaveDraft
   ]);
   
@@ -810,6 +816,9 @@ export default function NewProductPage() {
       
       // Add this at the end after successful creation
       clearProductDraft(true); // Silently clear the draft
+      
+      // Show success message
+      toast.success("Product created successfully");
       
       // Navigate to product detail page
       router.push(`/products/${result.id}`);
@@ -1138,6 +1147,23 @@ export default function NewProductPage() {
                         onChange={(e) => setStockQuantity(e.target.value)}
                       />
                     </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="lowStockThreshold" className="flex items-center">
+                        Low Stock Threshold
+                        <FormTooltip content="When product stock falls below this value, it will be marked as 'Low Stock'" />
+                      </Label>
+                      <Input 
+                        id="lowStockThreshold" 
+                        type="number"
+                        placeholder="5" 
+                        value={lowStockThreshold}
+                        onChange={(e) => setLowStockThreshold(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Default value is 5. When stock is below this threshold, products will be marked as "Low Stock"
+                      </p>
+                    </div>
                                 
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="shortDescription">Short Description</Label>
@@ -1255,6 +1281,21 @@ export default function NewProductPage() {
                                 value={variant.stockQuantity || 0}
                                 onChange={(e) => updateVariant(index, 'stockQuantity', e.target.value || 0)}
                               />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`variant-${index}-threshold`}>Low Stock Threshold</Label>
+                              <Input 
+                                id={`variant-${index}-threshold`} 
+                                type="number"
+                                min="1"
+                                placeholder="5" 
+                                value={variant.threshold || 5}
+                                onChange={(e) => updateVariant(index, 'threshold', parseInt(e.target.value) || 5)}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                When stock falls below this value, variant will be marked as "Low Stock"
+                              </p>
                             </div>
                           </div>
                         </div>

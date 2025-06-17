@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Category } from "@/lib/api/categories-api";
 import { useRouter } from "next/navigation";
-import { FolderPlus, Settings } from "lucide-react";
+import { FolderPlus, Settings, Upload } from "lucide-react";
 
 interface CategoryFormProps {
   categories: Category[];
@@ -31,6 +31,8 @@ export const CategoryForm = ({
   const [description, setDescription] = useState(initialData?.description || "");
   const [parentId, setParentId] = useState<string | undefined>(initialData?.parentId || undefined);
   const [icon, setIcon] = useState(initialData?.icon || "");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -54,6 +56,26 @@ export const CategoryForm = ({
   const navigateToSpecTemplates = () => {
     if (initialData?.id) {
       router.push(`/categories/${initialData.id}/templates`);
+    }
+  };
+  
+  const handleFileSelect = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // For now, we'll use a simple URL.createObjectURL approach
+    // In a production app, you'd upload to your server or cloud storage
+    setIcon(URL.createObjectURL(file));
+    
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -143,8 +165,22 @@ export const CategoryForm = ({
                 onChange={(e) => setIcon(e.target.value)}
                 className="mb-2"
               />
-              <Button variant="outline" className="w-full" type="button">
-                Upload Image
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                type="button" 
+                onClick={handleFileSelect}
+                disabled={uploading}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {uploading ? "Uploading..." : "Upload Image"}
               </Button>
             </div>
           </div>

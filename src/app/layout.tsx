@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import AuthGuard from "@/components/auth/auth-guard";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CsrfProvider } from "@/contexts/CsrfContext";
 import { QueryProvider } from "@/contexts/QueryProvider";
 import { Toaster } from "sonner";
 
@@ -22,6 +23,26 @@ export const metadata: Metadata = {
   description: "Enterprise-level e-commerce admin dashboard",
 };
 
+// Split the layout into server and client components
+function RootLayoutClient({ children }: { children: React.ReactNode }) {
+  'use client';
+  
+  return (
+    <QueryProvider>
+      <AuthProvider>
+        <CsrfProvider>
+          <ThemeProvider>
+            <AuthGuard>
+              {children}
+            </AuthGuard>
+            <Toaster richColors position="top-right" />
+          </ThemeProvider>
+        </CsrfProvider>
+      </AuthProvider>
+    </QueryProvider>
+  );
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,16 +51,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <QueryProvider>
-          <AuthProvider>
-            <ThemeProvider>
-              <AuthGuard>
-                {children}
-              </AuthGuard>
-              <Toaster richColors position="top-right" />
-            </ThemeProvider>
-          </AuthProvider>
-        </QueryProvider>
+        <RootLayoutClient>
+          {children}
+        </RootLayoutClient>
       </body>
     </html>
   );

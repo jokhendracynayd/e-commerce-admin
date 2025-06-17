@@ -1,9 +1,15 @@
-import { axiosClient, setAuthToken, clearAuthToken, setRefreshToken, setUserId, clearAllTokens } from './axios-client';
+import { axiosClient, setAuthToken, clearAuthToken, setRefreshToken, setUserId, clearAllTokens, clearRefreshToken } from './axios-client';
 import { ENDPOINTS } from './endpoints';
 import { logApiError } from './error-handler';
 
 // Types
 export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  name: string;
   email: string;
   password: string;
 }
@@ -37,8 +43,37 @@ export interface ChangePasswordData {
   confirmPassword: string;
 }
 
-// Auth API service
+/**
+ * Auth API service
+ * 
+ * CSRF Protection:
+ * - The backend sets an XSRF-TOKEN cookie for all requests
+ * - For non-GET requests, the client must include the X-CSRF-TOKEN header with the value from the cookie
+ * - The getCsrfToken() method fetches a fresh token by calling the /auth/csrf-token endpoint
+ * - This token is automatically included in subsequent non-GET requests by the axios-client interceptor
+ * - For sensitive operations, you can use the useCsrf() hook's withCsrfProtection method
+ */
 export const authApi = {
+  // Register new user
+  register: async (data: RegisterData): Promise<boolean> => {
+    try {
+      // Ensure we have a CSRF token before attempting registration
+      try {
+        console.log('Pre-fetching CSRF token for registration');
+        await authApi.getCsrfToken();
+      } catch (csrfError) {
+        console.warn('Failed to pre-fetch CSRF token, continuing anyway:', csrfError);
+      }
+      
+      const response = await axiosClient.post(ENDPOINTS.AUTH.REGISTER, data);
+      console.log('Registration response:', response.data);
+      return response.data.success || response.status === 201;
+    } catch (error) {
+      logApiError(error);
+      throw error;
+    }
+  },
+  
   // Login user
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
@@ -47,10 +82,17 @@ export const authApi = {
       // Backend structure: { statusCode, message, data: { accessToken, refreshToken, user } }
       const authData = response.data.data;
       
-      // Store tokens and user ID in memory
+      // Store access token and user ID in memory
       setAuthToken(authData.accessToken);
-      setRefreshToken(authData.refreshToken);
       setUserId(authData.user.id);
+      
+      // Handle refresh token - might be in HTTP-only cookie instead of response body
+      if (authData.refreshToken) {
+        setRefreshToken(authData.refreshToken);
+      } else {
+        console.log('Refresh token not in response body, using HTTP-only cookie instead');
+        clearRefreshToken();
+      }
       
       return authData;
     } catch (error) {
@@ -62,14 +104,33 @@ export const authApi = {
   // Admin login
   adminLogin: async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
+      // Ensure we have a CSRF token before attempting admin login
+      try {
+        console.log('Pre-fetching CSRF token for admin login');
+        await authApi.getCsrfToken();
+      } catch (csrfError) {
+        console.warn('Failed to pre-fetch CSRF token, continuing anyway:', csrfError);
+      }
+      
       const response = await axiosClient.post(ENDPOINTS.AUTH.ADMIN_LOGIN, credentials);
       console.log('Admin login response:', response.data);
       // Backend structure: { statusCode, message, data: { accessToken, refreshToken, user } }
       const authData = response.data.data;
       
-      // Store tokens and user ID in memory
+      // Store access token and user ID in memory
       setAuthToken(authData.accessToken);
-      setRefreshToken(authData.refreshToken);
+      
+      // Handle refresh token - it might be in HTTP-only cookie instead of response body
+      if (authData.refreshToken) {
+        // For backward compatibility, store refresh token from response if available
+        setRefreshToken(authData.refreshToken);
+      } else {
+        console.log('Refresh token not in response body, using HTTP-only cookie instead');
+        // Clear any stored refresh token to rely on HTTP-only cookie
+        clearRefreshToken();
+      }
+      
+      // Always store user ID
       setUserId(authData.user.id);
       
       return authData;
@@ -139,12 +200,18 @@ export const authApi = {
   },
   
   // Refresh token (usually called automatically by axios interceptor)
-  refreshToken: async (userId: string, refreshToken: string): Promise<{ accessToken: string }> => {
+  refreshToken: async (userId: string, refreshToken?: string): Promise<{ accessToken: string }> => {
     try {
-      const response = await axiosClient.post(ENDPOINTS.AUTH.REFRESH, {
-        userId,
-        refreshToken
-      });
+      // Prepare request data
+      const requestData: any = { userId };
+      
+      // Only include refresh token in request body if it's provided
+      // If not provided, we're using HTTP-only cookies
+      if (refreshToken) {
+        requestData.refreshToken = refreshToken;
+      }
+      
+      const response = await axiosClient.post(ENDPOINTS.AUTH.REFRESH, requestData);
       
       // Backend structure: { statusCode, message, data: { accessToken } }
       const tokenData = response.data.data;
@@ -152,6 +219,42 @@ export const authApi = {
       return tokenData;
     } catch (error) {
       clearAllTokens();
+      logApiError(error);
+      throw error;
+    }
+  },
+  
+  // Get CSRF token (useful before important operations)
+  getCsrfToken: async (): Promise<{ success: boolean }> => {
+    try {
+      // This call sets the XSRF-TOKEN cookie that will be used for future requests
+      await axiosClient.get(ENDPOINTS.AUTH.CSRF_TOKEN);
+      
+      // Verify the cookie was set
+      if (typeof window !== 'undefined') {
+        const cookies = document.cookie.split(';');
+        const hasCsrfToken = cookies.some(cookie => cookie.trim().startsWith('XSRF-TOKEN='));
+        
+        if (!hasCsrfToken) {
+          console.error('CSRF token cookie was not set');
+          return { success: false };
+        }
+      }
+      
+      return { success: true };
+    } catch (error) {
+      logApiError(error);
+      console.error('Failed to fetch CSRF token:', error);
+      throw error;
+    }
+  },
+  
+  // Update profile
+  updateProfile: async (data: { name: string }): Promise<UserDto> => {
+    try {
+      const response = await axiosClient.patch(ENDPOINTS.USERS.BASE, data);
+      return response.data.data;
+    } catch (error) {
       logApiError(error);
       throw error;
     }

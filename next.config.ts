@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
       'cynayd.com',
       'images.unsplash.com',
       'plus.unsplash.com',
-      'res.cloudinary.com'
+      'res.cloudinary.com',
+      'i.pinimg.com'
     ]
   },
   /* config options here */

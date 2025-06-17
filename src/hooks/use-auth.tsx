@@ -7,6 +7,7 @@ interface UseAuthReturn {
   user: any;
   isLoading: boolean;
   error: string | null;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
   login: (email: string, password: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -14,6 +15,7 @@ interface UseAuthReturn {
   isAdmin: boolean;
   hasPermission: (role: string) => boolean;
   clearError: () => void;
+  updateProfile: (data: { name: string }) => Promise<boolean>;
 }
 
 export function useAuth(): UseAuthReturn {

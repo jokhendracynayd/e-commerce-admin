@@ -127,6 +127,7 @@ export interface CreateProductVariantDto {
   price: number;
   additionalPrice?: number;
   stockQuantity: number;
+  threshold?: number;
 }
 
 export interface CreateProductDto {
@@ -457,6 +458,23 @@ export const productsApi = {
     } catch (error) {
       logApiError(error);
       throw error;
+    }
+  },
+
+  // Search products
+  searchProducts: async (searchTerm: string = '', limit: number = 10): Promise<Product[]> => {
+    try {
+      const params: ProductListParams = {
+        search: searchTerm,
+        limit: limit,
+        page: 1
+      };
+      
+      const response = await productsApi.getProducts(params);
+      return response.products;
+    } catch (error) {
+      logApiError(error);
+      return [];
     }
   }
 }; 

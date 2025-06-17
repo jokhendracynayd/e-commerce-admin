@@ -113,7 +113,7 @@ export const categoriesApi = {
   // Update category
   updateCategory: async (id: string, categoryData: Partial<CreateCategoryDto>): Promise<Category> => {
     try {
-      const response = await axiosClient.put(ENDPOINTS.CATEGORIES.DETAIL(id), categoryData);
+      const response = await axiosClient.patch(ENDPOINTS.CATEGORIES.DETAIL(id), categoryData);
       
       // Handle potential data wrapper
       return response.data.data || response.data;

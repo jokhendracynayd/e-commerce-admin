@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, FolderPlus } from "lucide-react";
+import { ArrowLeft, Save, FolderPlus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +33,40 @@ export default function NewCategoryPage() {
   const [showInMenu, setShowInMenu] = useState(true);
   const [showInFilters, setShowInFilters] = useState(true);
   const [displayOrder, setDisplayOrder] = useState("0");
+  
+  // Generate slug from name
+  const generateSlug = (text: string): string => {
+    return text
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')        // Replace spaces with dashes
+      .replace(/[^\w\-]+/g, '')     // Remove all non-word chars
+      .replace(/\-\-+/g, '-')       // Replace multiple dashes with single dash
+      .replace(/^-+/, '')           // Trim dashes from start
+      .replace(/-+$/, '');          // Trim dashes from end
+  };
+
+  // Handle name change and auto-generate slug
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setName(newName);
+    
+    // Only auto-generate slug if user hasn't manually edited it yet
+    // or if the slug is empty
+    if (slug === '' || slug === generateSlug(name)) {
+      setSlug(generateSlug(newName));
+    }
+    
+    // Auto-generate meta title if it's empty
+    if (metaTitle === '') {
+      setMetaTitle(newName);
+    }
+  };
+
+  // Handle regenerate slug button click
+  const handleRegenerateSlug = () => {
+    setSlug(generateSlug(name));
+  };
   
   // Fetch categories for parent dropdown
   useEffect(() => {
@@ -73,6 +107,9 @@ export default function NewCategoryPage() {
         categoryData.description = description.trim();
       }
       
+      // Note: The API doesn't accept slug directly, but we keep the UI functionality
+      // const slugForUI = slug.trim();
+      
       if (icon.trim()) {
         categoryData.icon = icon.trim();
       }
@@ -80,6 +117,18 @@ export default function NewCategoryPage() {
       if (parentId && parentId !== "none") {
         categoryData.parentId = parentId;
       }
+      
+      // These fields are collected in UI but not sent to API
+      // as they're not supported in the current API version
+      console.log("UI-only fields not sent to API:", {
+        slug: slug.trim(),
+        metaTitle: metaTitle.trim(), 
+        metaDescription: metaDescription.trim(),
+        featured,
+        showInMenu,
+        showInFilters,
+        displayOrder
+      });
       
       console.log("Creating category with data:", categoryData);
       
@@ -148,20 +197,31 @@ export default function NewCategoryPage() {
                         id="name" 
                         placeholder="Enter category name" 
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={handleNameChange}
                         required 
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="slug">Slug</Label>
-                      <Input 
-                        id="slug" 
-                        placeholder="enter-slug-here"
-                        value={slug}
-                        onChange={(e) => setSlug(e.target.value)}
-                      />
+                      <div className="flex space-x-2">
+                        <Input 
+                          id="slug" 
+                          placeholder="enter-slug-here"
+                          value={slug}
+                          onChange={(e) => setSlug(e.target.value)}
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="icon" 
+                          onClick={handleRegenerateSlug}
+                          title="Regenerate slug from name"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <p className="text-sm text-muted-foreground">
-                        The slug is used in the URL of the category page
+                        The slug is used in the URL of the category page. It will be auto-generated from the name.
                       </p>
                     </div>
                   </div>

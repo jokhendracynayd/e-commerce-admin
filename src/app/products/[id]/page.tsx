@@ -117,7 +117,7 @@ export default function ProductEditPage() {
         
         // Add defensive checks for categories and brands data
         setCategories(Array.isArray(categoriesData) ? 
-          categoriesData.filter(cat => !cat.parentId) : []);
+          categoriesData : []);
           
         setSubCategories(Array.isArray(categoriesData) ? 
           categoriesData.filter(cat => cat.parentId) : []);
@@ -383,6 +383,30 @@ export default function ProductEditPage() {
     }
   };
 
+  // Generate SKU for product
+  const generateSku = (title: string): string => {
+    if (!title.trim()) return "";
+    
+    // Extract prefix from title (first 3 characters, uppercase)
+    const prefix = title
+      .substring(0, 3)
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+    
+    // Add timestamp and random string for uniqueness
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+    
+    return `${prefix}-${timestamp}-${random}`;
+  };
+
+  // Update SKU when title changes if SKU is empty
+  useEffect(() => {
+    if (form.title && !form.sku) {
+      handleChange("sku", generateSku(form.title));
+    }
+  }, [form.title, form.sku]);
+
   if (loading) {
     return (
       <MainLayout>
@@ -475,7 +499,18 @@ export default function ProductEditPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="sku">SKU <span className="text-destructive">*</span></Label>
+                      <div className="flex justify-between">
+                        <Label htmlFor="sku">SKU <span className="text-destructive">*</span></Label>
+                        <Button 
+                          type="button" 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-7 text-xs"
+                          onClick={() => form.title && handleChange("sku", generateSku(form.title))}
+                        >
+                          Regenerate
+                        </Button>
+                      </div>
                       <Input 
                         id="sku" 
                         value={form.sku || ""} 
@@ -483,7 +518,10 @@ export default function ProductEditPage() {
                         placeholder="Enter SKU code" 
                         required 
                       />
-                  </div>
+                      <p className="text-xs text-muted-foreground">
+                        SKU is auto-generated based on the product title, but you can edit it manually
+                      </p>
+                    </div>
 
                   <div className="space-y-2">
                       <Label htmlFor="barcode">Barcode</Label>

@@ -10,11 +10,13 @@ interface AuthContextType {
   user: UserDto | null;
   isLoading: boolean;
   error: string | null;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
   login: (email: string, password: string) => Promise<void>;
   adminLogin: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   clearError: () => void;
+  updateProfile: (data: { name: string }) => Promise<boolean>;
 }
 
 // Create auth context with undefined default value
@@ -85,6 +87,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, [router]);
 
+  // Register function for creating new accounts
+  const register = async (name: string, email: string, password: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      return await authApi.register({ name, email, password });
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Registration failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Login function for regular users
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -146,6 +163,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Clear error function
   const clearError = () => setError(null);
+  
+  // Update profile function
+  const updateProfile = async (data: { name: string }): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const updatedUser = await authApi.updateProfile(data);
+      setUser(updatedUser);
+      return true;
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update profile');
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Return the context provider
   return (
@@ -154,11 +188,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         user,
         isLoading,
         error,
+        register,
         login,
         adminLogin,
         logout,
         isAuthenticated: !!user,
         clearError,
+        updateProfile,
       }}
     >
       {children}

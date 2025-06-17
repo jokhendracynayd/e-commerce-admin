@@ -212,8 +212,8 @@ export default function DealProductsPage() {
           <CardContent>
             <div className="mb-6">
               <Badge variant={
-                deal.status === "Active" ? "success" : 
-                deal.status === "Upcoming" ? "default" : "outline"
+                deal.status === "Active" ? "default" : 
+                deal.status === "Upcoming" ? "secondary" : "outline"
               }>
                 {deal.status}
               </Badge>

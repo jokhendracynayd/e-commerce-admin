@@ -1,16 +1,20 @@
 // API base URL from environment variables
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.allmart.fashion/api/v1';
+
+// export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 // Centralized endpoint definitions for the e-commerce API
 export const ENDPOINTS = {
   AUTH: {
     LOGIN: '/auth/login',
+    REGISTER: '/auth/register',
     ADMIN_LOGIN: '/auth/admin/login',
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
     PROFILE: '/auth/me',
     ADMIN_PROFILE: '/auth/admin/me',
     CHANGE_PASSWORD: '/auth/change-password',
+    CSRF_TOKEN: '/auth/csrf-token',
   },
   
   USERS: {

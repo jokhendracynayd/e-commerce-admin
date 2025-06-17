@@ -260,7 +260,7 @@ export default function BrandViewPage() {
                 </a>
               </div>
               <div className="mt-2 flex gap-2">
-                <Badge variant={brand.status === "Active" ? "success" : "secondary"}>
+                <Badge variant={brand.status === "Active" ? "default" : "secondary"}>
                   {brand.status}
                 </Badge>
                 {brand.featured && (
