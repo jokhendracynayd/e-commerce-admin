@@ -12,7 +12,8 @@ const nextConfig: NextConfig = {
       'images.unsplash.com',
       'plus.unsplash.com',
       'res.cloudinary.com',
-      'i.pinimg.com'
+      'i.pinimg.com',
+      'my-ecommerce-uploads.s3.ap-south-1.amazonaws.com'
     ]
   },
   /* config options here */

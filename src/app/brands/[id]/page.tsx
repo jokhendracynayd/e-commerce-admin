@@ -12,6 +12,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { CsrfProtectedForm } from "@/components/form/CsrfProtectedForm";
+import { useCsrf } from "@/contexts/CsrfContext";
 
 // Mock function to get brand by ID (same as in view page)
 async function getBrandById(id: string) {
@@ -132,6 +134,7 @@ export default function BrandEditPage() {
   const params = useParams();
   const router = useRouter();
   const brandId = params.id as string;
+  const { withCsrfProtection } = useCsrf();
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -212,12 +215,17 @@ export default function BrandEditPage() {
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     setSaving(true);
     
     try {
-      // Simulate API call to update brand
+      // Use CSRF protection for brand update
+      await withCsrfProtection(async () => {
+        // TODO: Replace with real API call when implemented
+        // await brandsApi.updateBrand(brandId, formData);
+        
+        // Simulate API call to update brand for now
       await new Promise(resolve => setTimeout(resolve, 1000));
+      });
       
       // Navigate to brand view page
       router.push(`/brands/${brandId}/view`);
@@ -263,7 +271,7 @@ export default function BrandEditPage() {
           <h1 className="text-3xl font-bold">Edit Brand</h1>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <CsrfProtectedForm onSubmit={handleSubmit}>
           <Card>
             <CardHeader>
               <CardTitle>Brand Information</CardTitle>
@@ -421,7 +429,7 @@ export default function BrandEditPage() {
               </Button>
             </CardFooter>
           </Card>
-        </form>
+        </CsrfProtectedForm>
         
         <Card className="border-destructive/50">
           <CardHeader className="text-destructive">

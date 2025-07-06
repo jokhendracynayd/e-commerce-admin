@@ -156,7 +156,11 @@ export const determineCompletedSections = (data: Record<string, any>): ProductDr
   
   // Images section: at least one image
   if (Array.isArray(data.productImages) && data.productImages.length > 0) {
-    completedSections.push('images');
+    // Additional validation to ensure images have valid URLs
+    const validImages = data.productImages.filter(img => img && img.imageUrl && img.imageUrl.trim());
+    if (validImages.length > 0) {
+      completedSections.push('images');
+    }
   }
   
   // Variants section: either no variants or well-defined variants

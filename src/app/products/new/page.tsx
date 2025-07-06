@@ -38,6 +38,8 @@ import { useProductPreview, PreviewProduct } from "@/hooks/useProductPreview";
 import { ProductSpecificationsForm } from "@/components/ProductSpecificationsForm";
 import { CreateProductSpecificationDto } from "@/lib/api/specifications-api";
 import { inventoryService } from '@/services/inventoryService';
+import { FileUpload } from "@/components/ui/file-upload";
+import { UploadedFileInfo } from '@/types/upload';
 
 // Lazy load components with a different name
 const LazyProductFormProgress = dynamic(
@@ -54,7 +56,7 @@ const ProductPreviewModal = dynamic(() => import("@/components/ProductPreviewMod
 
 export default function NewProductPage() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
   
   // Add this for auto-save timer
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -89,10 +91,15 @@ export default function NewProductPage() {
   const [metaDescription, setMetaDescription] = useState("");
   const [metaKeywords, setMetaKeywords] = useState("");
   const [productImages, setProductImages] = useState<CreateProductImageDto[]>([]);
+  
+  // Debug product images state changes
+  useEffect(() => {
+    console.log('productImages state changed:', productImages);
+  }, [productImages]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [currency, setCurrency] = useState<string>("INR");
   const [variants, setVariants] = useState<CreateProductVariantDto[]>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
+
   
   // Form validation and submission state
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -290,129 +297,11 @@ export default function NewProductPage() {
     setVariants(updatedVariants);
   };
   
-  // Add a new image from URL
-  const addImageFromUrl = (url: string, altText: string) => {
-    if (!url.trim()) return;
-    
-    // Basic URL validation
-    let validUrl = url;
-    // If URL doesn't start with http or https, assume it's http
-    if (!url.match(/^https?:\/\//i)) {
-      validUrl = `https://${url}`;
-    }
-    
-    const newImage: CreateProductImageDto = {
-      imageUrl: validUrl,
-      altText: altText || title || "Product image",
-      position: productImages.length
-    };
-    
-    setProductImages([...productImages, newImage]);
-  };
+
   
-  // Update an image
-  const updateImage = (index: number, field: keyof CreateProductImageDto, value: string) => {
-    const updatedImages = [...productImages];
-    
-    // If updating the URL, ensure it's valid
-    if (field === 'imageUrl' && value) {
-      // Basic URL validation
-      let validUrl = value;
-      if (!value.match(/^https?:\/\//i)) {
-        validUrl = `https://${value}`;
-      }
-      
-      updatedImages[index] = {
-        ...updatedImages[index],
-        imageUrl: validUrl
-      };
-    } else {
-      updatedImages[index] = {
-        ...updatedImages[index],
-        [field]: value
-      };
-    }
-    
-    setProductImages(updatedImages);
-  };
+
   
-  // Remove an image
-  const removeImage = (index: number) => {
-    const updatedImages = productImages.filter((_, i) => i !== index);
-    // Update positions after removal
-    const reorderedImages = updatedImages.map((img, i) => ({
-      ...img,
-      position: i
-    }));
-    setProductImages(reorderedImages);
-  };
-  
-  // Handle file selection
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    
-    setUploadingImage(true);
-    
-    try {
-      const file = files[0];
-      // Use the URL directly without going through FileReader
-      addImageFromUrl(getSafeImageSrc(file), file.name);
-          setUploadingImage(false);
-      
-      // Reset the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    } catch (error) {
-      console.error("Error handling file:", error);
-      setError("Failed to process the selected image.");
-      setUploadingImage(false);
-    }
-  };
-  
-  // Handle drag and drop
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-  
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setUploadingImage(true);
-      
-      try {
-        const file = e.dataTransfer.files[0];
-        // Use the URL directly without going through FileReader
-        addImageFromUrl(getSafeImageSrc(file), file.name);
-            setUploadingImage(false);
-      } catch (error) {
-        console.error("Error handling dropped file:", error);
-        setError("Failed to process the dropped image.");
-        setUploadingImage(false);
-      }
-    }
-  };
-  
-  // Reorder images
-  const moveImage = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= productImages.length) return;
-    
-    const updatedImages = [...productImages];
-    const [movedItem] = updatedImages.splice(fromIndex, 1);
-    updatedImages.splice(toIndex, 0, movedItem);
-    
-    // Update positions after reordering
-    const reorderedImages = updatedImages.map((img, i) => ({
-      ...img,
-      position: i
-    }));
-    
-    setProductImages(reorderedImages);
-  };
+
   
   // Memoize the dimensions object to prevent unnecessary re-renders
   const dimensions = useMemo(() => ({
@@ -464,13 +353,13 @@ export default function NewProductPage() {
     productImages.forEach((image, index) => {
       if (!image.imageUrl) {
         newErrors[`image_${index}_url`] = "Image URL is required";
-      }
-      
-      // Check if URL is valid
-      try {
-        new URL(image.imageUrl);
-      } catch (e) {
-        newErrors[`image_${index}_url`] = "Image URL is not valid";
+      } else {
+        // Check if URL is valid
+        try {
+          new URL(image.imageUrl);
+        } catch (e) {
+          newErrors[`image_${index}_url`] = "Image URL is not valid";
+        }
       }
     });
     
@@ -478,43 +367,7 @@ export default function NewProductPage() {
     return Object.keys(newErrors).length === 0;
   }, [title, sku, price, variants, productImages]);
   
-  // If the selected files are possibly large images, optimize rendering
-  const renderedSelectedFiles = useMemo(() => {
-    if (productImages.length === 0) return null;
-    
-    return (
-      <div className="space-y-3 mt-4">
-        <h4 className="text-sm font-medium">Selected Files:</h4>
-        <div className="grid grid-cols-2 gap-2">
-          {productImages.map((image, index) => (
-            <div key={index} className="relative rounded-md border bg-muted p-1">
-              <div className="aspect-square w-full overflow-hidden rounded-sm">
-                <img
-                  src={getSafeImageSrc(image.imageUrl)}
-                  alt={truncateText(image.altText, 20)}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-              <div className="absolute -top-1 -right-1">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="h-5 w-5 rounded-full"
-                  onClick={() => removeImage(index)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="mt-1 truncate text-xs text-muted-foreground px-1">
-                {truncateText(image.altText, 20)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }, [productImages]);
+
   
   // Function to collect all form data
   const collectFormData = useCallback(() => {
@@ -659,7 +512,6 @@ export default function NewProductPage() {
         })).filter(spec => spec.specKey && spec.specKey.trim() !== "");
         
         setSpecifications(validSpecs);
-        console.log("Loaded specifications from draft:", validSpecs);
       }
       
       // Update state
@@ -717,6 +569,23 @@ export default function NewProductPage() {
     };
   }, []);
   
+  // Validate images section when productImages changes
+  useEffect(() => {
+    setCompletedSections(prev => {
+      const otherSections = prev.filter(section => section !== 'images');
+      
+      // Check if images section should be completed
+      if (productImages.length > 0) {
+        const validImages = productImages.filter(img => img && img.imageUrl && img.imageUrl.trim());
+        if (validImages.length > 0) {
+          return [...otherSections, 'images'];
+        }
+      }
+      
+      return otherSections;
+    });
+  }, [productImages]);
+  
   // Add handler for specifications change
   const handleSpecificationsChange = (newSpecs: CreateProductSpecificationDto[]) => {
     setSpecifications(newSpecs);
@@ -770,7 +639,9 @@ export default function NewProductPage() {
       if (metaTitle) productData.metaTitle = metaTitle;
       if (metaDescription) productData.metaDescription = metaDescription;
       if (metaKeywords) productData.metaKeywords = metaKeywords;
-      if (productImages.length > 0) productData.images = productImages;
+      if (productImages.length > 0) {
+        productData.images = productImages;
+      }
       if (selectedTags.length > 0) productData.tagIds = selectedTags;
       if (variants.length > 0) {
         // Ensure all variants have proper price values
@@ -788,11 +659,8 @@ export default function NewProductPage() {
       productData.visibility = visibility;
       productData.currency = currency;
       
-      console.log("Creating product with data:", productData);
-      
       // Call API to create product
       const result = await productsApi.createProduct(productData);
-      console.log("Product created successfully:", result);
       
       // If we have specifications, save them
       if (specifications.length > 0) {
@@ -1472,190 +1340,98 @@ export default function NewProductPage() {
                 <CardHeader>
                   <CardTitle>Images</CardTitle>
                   <CardDescription>
-                    Product photos
+                    Product photos and media
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex flex-col space-y-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="add-image-url">Add Image URL</Label>
-                      <Button 
-                        type="button" 
-                        size="sm"
-                        variant="outline" 
-                        onClick={() => {
-                          const urlInput = document.getElementById("add-image-url") as HTMLInputElement;
-                          const altInput = document.getElementById("add-image-alt") as HTMLInputElement;
-                          if (urlInput && urlInput.value) {
-                            addImageFromUrl(urlInput.value, altInput?.value || "");
-                            urlInput.value = "";
-                            if (altInput) altInput.value = "";
-                          }
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input 
-                        id="add-image-url" 
-                      placeholder="https://example.com/image.jpg" 
-                    />
-                    <Input 
-                        id="add-image-alt" 
-                      placeholder="Image description" 
-                    />
-                    </div>
-                  </div>
-                  
-                  <div className="border-t my-4 pt-4">
-                    <h4 className="font-medium mb-2">Product Images ({productImages.length})</h4>
-                    
-                    {productImages.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        No images added yet. Add an image using the form above or upload a file below.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {productImages.map((image, index) => (
-                          <div 
-                            key={index}
-                            className={`border rounded-md p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 ${
-                              errors[`image_${index}_url`] ? "border-destructive" : ""
-                            }`}
-                          >
-                            <div className="flex items-center gap-1">
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="sm"
-                                disabled={index === 0} 
-                                onClick={() => moveImage(index, index - 1)}
-                                className="px-1"
-                              >
-                                ↑
-                              </Button>
-                              <Button 
-                                type="button"
-                                variant="ghost" 
-                                size="sm"
-                                disabled={index === productImages.length - 1} 
-                                onClick={() => moveImage(index, index + 1)}
-                                className="px-1"
-                              >
-                                ↓
-                              </Button>
-                              <div className="font-mono font-medium">
-                                {index === 0 ? (
-                                  <span className="text-xs text-primary font-bold">Primary</span>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground">#{index + 1}</span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="w-16 h-16 rounded border overflow-hidden flex-shrink-0 mr-2">
-                              <img 
-                                src={getSafeImageSrc(image.imageUrl)} 
-                                alt={truncateText(image.altText, 20)} 
-                                className="w-full h-full object-contain"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                                  target.src = "https://placehold.co/100x100?text=Error";
-                        }}
-                      />
-                    </div>
-                            
-                            <div className="flex-grow min-w-0">
-                              <div className="text-sm truncate">{image.imageUrl}</div>
-                              <div className="text-xs text-muted-foreground truncate">
-                                {truncateText(image.altText, 20)}
-                              </div>
-                              {errors[`image_${index}_url`] && (
-                                <p className="text-xs text-destructive">
-                                  {errors[`image_${index}_url`]}
-                                </p>
-                  )}
-                            </div>
-                  
-                            <div className="flex gap-1">
-                              <Button 
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  // Create a prompt to edit the image details
-                                  const newUrl = window.prompt(
-                                    "Edit image URL:", 
-                                    image.imageUrl
-                                  );
-                                  if (newUrl !== null) {
-                                    const newAlt = window.prompt(
-                                      "Edit alt text:", 
-                                      image.altText
-                                    );
-                                    if (newAlt !== null) {
-                                      const updatedImages = [...productImages];
-                                      updatedImages[index] = {
-                                        ...updatedImages[index],
-                                        imageUrl: newUrl,
-                                        altText: newAlt
-                                      };
-                                      setProductImages(updatedImages);
-                                    }
-                                  }
-                                }}
-                                className="px-2 h-8"
-                              >
-                                Edit
-                              </Button>
-                              <Button 
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeImage(index)}
-                                className="text-destructive hover:text-destructive px-2 h-8"
-                              >
-                                <Trash className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div 
-                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 transition-colors ${uploadingImage ? 'opacity-50' : ''}`}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      accept="image/*"
-                      onChange={handleFileSelect}
-                      style={{ display: 'none' }}
-                    />
-                    <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                    {uploadingImage ? (
-                    <p className="text-sm text-muted-foreground">
-                        Processing image...
-                      </p>
-                    ) : (
-                      <>
-                        <p className="text-sm text-muted-foreground">
-                          Click to select or drag and drop an image
-                    </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                          PNG, JPG, GIF up to 5MB
-                    </p>
-                      </>
-                    )}
-                  </div>
+                <CardContent>
+                  <FileUpload
+                    folder="products"
+                    multiple={true}
+                    maxSizeMB={10}
+                    allowedTypes={['image/jpeg', 'image/png', 'image/gif', 'image/webp']}
+                    value={productImages
+                      .filter(img => img && img.imageUrl)
+                      .map((img, index) => {
+                        // Try to detect mimetype from URL extension
+                        const url = img.imageUrl.toLowerCase();
+                        let mimetype = 'image/jpeg'; // default
+                        if (url.includes('.png')) mimetype = 'image/png';
+                        else if (url.includes('.gif')) mimetype = 'image/gif';
+                        else if (url.includes('.webp')) mimetype = 'image/webp';
+                        else if (url.includes('.svg')) mimetype = 'image/svg+xml';
+                        
+                        return {
+                          key: `product-image-${img.position || index}-${img.imageUrl.substring(img.imageUrl.lastIndexOf('/') + 1)}`,
+                          url: img.imageUrl,
+                          originalName: img.altText || `Product image ${index + 1}`,
+                          mimetype,
+                          size: 1024 // Placeholder size
+                        };
+                      })}
+                    onFilesChange={(files: UploadedFileInfo[]) => {
+                      // This handles file removal and reordering from the UI
+                      const images = files.map((file, index) => ({
+                        imageUrl: file.url,
+                        altText: file.originalName || `Product image ${index + 1}`,
+                        position: index
+                      }));
+                      
+                      setProductImages(images);
+                    }}
+                    onSuccess={(files) => {
+                      // Directly process backend response and add to productImages
+                      const newImages = files.map((file, index) => ({
+                        imageUrl: file.url, // Backend URL from response
+                        altText: file.originalName || `Product image ${productImages.length + index + 1}`,
+                        position: productImages.length + index
+                      }));
+                      
+                      // Add to existing productImages
+                      const updatedImages = [...productImages, ...newImages];
+                      setProductImages(updatedImages);
+                      
+                      // Immediate validation
+                      setTimeout(() => {
+                        const formData = {
+                          title,
+                          description,
+                          shortDescription,
+                          price,
+                          discountPrice,
+                          sku,
+                          barcode,
+                          weight,
+                          dimensions,
+                          stockQuantity,
+                          brandId,
+                          categoryId,
+                          subCategoryId,
+                          isActive,
+                          isFeatured,
+                          visibility,
+                          metaTitle,
+                          metaDescription,
+                          metaKeywords,
+                          productImages: updatedImages,
+                          selectedTags,
+                          currency,
+                          variants,
+                          specifications,
+                          lowStockThreshold,
+                        };
+                        const sections = determineCompletedSections(formData);
+                        setCompletedSections(sections);
+                      }, 50);
+                      
+                      toast.success(`Uploaded ${files.length} image(s) successfully`);
+                    }}
+                    onError={(error) => {
+                      toast.error('Upload failed', { description: error });
+                    }}
+                    placeholder="Drag and drop product images here or click to browse"
+                    dragText="Drop product images here to upload"
+                    browseText="Browse Images"
+                  />
                 </CardContent>
               </Card>
               

@@ -12,9 +12,12 @@ import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { brandsApi, CreateBrandDto } from "@/lib/api/brands-api";
+import { CsrfProtectedForm } from "@/components/form/CsrfProtectedForm";
+import { useCsrf } from "@/contexts/CsrfContext";
 
 export default function AddBrandPage() {
   const router = useRouter();
+  const { withCsrfProtection } = useCsrf();
   
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +56,6 @@ export default function AddBrandPage() {
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     setSaving(true);
     setError(null);
     
@@ -88,8 +90,10 @@ export default function AddBrandPage() {
       
       console.log('Submitting brand data:', brandData);
       
-      // API call to create brand
-      const result = await brandsApi.createBrand(brandData);
+      // API call to create brand with CSRF protection
+      const result = await withCsrfProtection(async () => {
+        return await brandsApi.createBrand(brandData);
+      });
       console.log('Brand created successfully:', result);
       
       // Navigate to brands listing page
@@ -136,7 +140,7 @@ export default function AddBrandPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <CsrfProtectedForm onSubmit={handleSubmit}>
           <Card>
             <CardHeader>
               <CardTitle>Brand Information</CardTitle>
@@ -217,7 +221,7 @@ export default function AddBrandPage() {
               </Button>
             </CardFooter>
           </Card>
-        </form>
+        </CsrfProtectedForm>
       </div>
     </MainLayout>
   );
