@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Info, Loader2, Save, Trash, Upload, X, Plus } from "lucide-react";
+import { ArrowLeft, Info, Loader2, Save, Trash } from "lucide-react";
 import Link from "next/link";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,11 +28,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
 import { getCurrencySymbol } from "@/lib/utils";
-import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
 import { ProductSpecificationsForm } from "@/components/ProductSpecificationsForm";
 import { ProductSpecificationsDisplay } from "@/components/ProductSpecificationsDisplay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileUpload } from "@/components/ui/file-upload";
+import { UploadedFileInfo } from "@/types/upload";
 
 export default function ProductEditPage() {
   const router = useRouter();
@@ -51,11 +51,12 @@ export default function ProductEditPage() {
   const [form, setForm] = useState<UpdateProductDto>({});
   const [categoryId, setCategoryId] = useState<string>("");
   const [subCategoryId, setSubCategoryId] = useState<string>("");
-  const [images, setImages] = useState<ProductImage[]>([]);
+  const [productImages, setProductImages] = useState<Array<{
+    imageUrl: string;
+    altText: string;
+    position: number;
+  }>>([]);
   const [currency, setCurrency] = useState<string>("USD");
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
-  const [imagesToDelete, setImagesToDelete] = useState<string[]>([]);
   
   // UI state
   const [loading, setLoading] = useState(true);
@@ -98,7 +99,11 @@ export default function ProductEditPage() {
         setCategoryId(productData.category?.id || "");
         setSubCategoryId(productData.subCategory?.id || "");
         setCurrency(productData.currency || "USD");
-        setImages(productData.images || []);
+        setProductImages(productData.images?.map((img, index) => ({
+          imageUrl: img.imageUrl,
+          altText: img.altText || `Product image ${index + 1}`,
+          position: index
+        })) || []);
         
       } catch (error: any) {
         console.error("Error fetching product:", error);
@@ -162,123 +167,39 @@ export default function ProductEditPage() {
     handleChange('subCategoryId', null);
   };
   
-  // Handle file input change
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const filesArray = Array.from(e.target.files);
-      setSelectedFiles(prev => [...prev, ...filesArray]);
-    }
-  };
-  
-  // Remove selected file
-  const removeSelectedFile = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-  
-  // Remove existing image
-  const removeExistingImage = (imageId: string) => {
-    setImagesToDelete(prev => [...prev, imageId]);
-    setImages(prev => prev.filter(img => img.id !== imageId));
-  };
 
-  // Upload images
-  const uploadImages = async () => {
-    if (selectedFiles.length === 0) return [];
-    
-    // In a real implementation, you'd upload each file to your server
-    // For now, we'll mock this behavior with URLs
-    const uploadedUrls = selectedFiles.map(
-      (file, index) => URL.createObjectURL(file)
-    );
-    
-    setUploadedImageUrls(uploadedUrls);
-    return uploadedUrls.map((url, index) => ({
-      imageUrl: url,
-      altText: selectedFiles[index].name,
-      position: images.length + index
-    }));
-  };
   
-  // Product images
-  const addImageFromUrl = (url: string, altText: string) => {
-    if (!url.trim()) return;
-    
-    // Basic URL validation
-    let validUrl = url;
-    // If URL doesn't start with http or https, assume it's https
-    if (!url.match(/^https?:\/\//i)) {
-      validUrl = `https://${url}`;
-    }
-    
-    const newImage: ProductImage = {
-      imageUrl: validUrl,
-      altText: altText || form.title || "Product image",
-      position: images.length
-    };
-    
-    setImages([...images, newImage]);
-  };
-  
-  // Update an image
-  const updateImage = (index: number, field: keyof ProductImage, value: string) => {
-    const updatedImages = [...images];
-    
-    // If updating the URL, ensure it's valid
-    if (field === 'imageUrl' && value) {
-      // Basic URL validation
-      let validUrl = value;
-      if (!value.match(/^https?:\/\//i)) {
-        validUrl = `https://${value}`;
-      }
-      
-      updatedImages[index] = {
-        ...updatedImages[index],
-        imageUrl: validUrl
-      };
-    } else {
-      updatedImages[index] = {
-        ...updatedImages[index],
-        [field]: value
-      };
-    }
-    
-    setImages(updatedImages);
-  };
-  
-  // Reorder images
-  const moveImage = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= images.length) return;
-    
-    const updatedImages = [...images];
-    const [movedItem] = updatedImages.splice(fromIndex, 1);
-    updatedImages.splice(toIndex, 0, movedItem);
-    
-    // Update positions after reordering
-    const reorderedImages = updatedImages.map((img, i) => ({
-      ...img,
-      position: i
+
+
+  // FileUpload handlers
+  const handleFilesChange = (files: UploadedFileInfo[]) => {
+    // This handles file removal and reordering from the UI
+    const images = files.map((file, index) => ({
+      imageUrl: file.url,
+      altText: file.originalName || `Product image ${index + 1}`,
+      position: index
     }));
     
-    setImages(reorderedImages);
+    setProductImages(images);
   };
 
-  // Edit image alt text and URL
-  const editImage = (index: number, newUrl: string, newAlt: string) => {
-    const updatedImages = [...images];
+  const handleUploadSuccess = (files: UploadedFileInfo[]) => {
+    // Directly process backend response and add to productImages
+    const newImages = files.map((file, index) => ({
+      imageUrl: file.url, // Backend URL from response
+      altText: file.originalName || `Product image ${productImages.length + index + 1}`,
+      position: productImages.length + index
+    }));
     
-    // Ensure the URL is valid
-    let validUrl = newUrl;
-    if (newUrl && !newUrl.match(/^https?:\/\//i)) {
-      validUrl = `https://${newUrl}`;
-    }
+    // Add to existing productImages
+    const updatedImages = [...productImages, ...newImages];
+    setProductImages(updatedImages);
     
-    updatedImages[index] = {
-      ...updatedImages[index],
-      imageUrl: validUrl,
-      altText: newAlt
-    };
-    
-    setImages(updatedImages);
+    toast.success(`Uploaded ${files.length} image(s) successfully`);
+  };
+
+  const handleUploadError = (error: string) => {
+    toast.error('Upload failed', { description: error });
   };
 
   // Handle form submission
@@ -294,12 +215,6 @@ export default function ProductEditPage() {
           description: "Please fill in all required fields"
         });
         return;
-      }
-      
-      // Upload images if any
-      let uploadedImages: ProductImage[] = [];
-      if (selectedFiles.length > 0) {
-        uploadedImages = await uploadImages();
       }
       
       // Prepare update data with the correct structure
@@ -324,21 +239,12 @@ export default function ProductEditPage() {
         brandId: form.brandId,
         categoryId: form.categoryId,
         subCategoryId: form.subCategoryId,
-        // Include only images not marked for deletion and add new uploaded images
-        images: [
-          ...images
-            .filter(img => !imagesToDelete.includes(img.id || ''))
-            .map(img => ({
-              imageUrl: img.imageUrl,
-              altText: img.altText || '',
-              position: img.position
-            })),
-          ...uploadedImages.map(img => ({
-            imageUrl: img.imageUrl,
-            altText: img.altText || '',
-            position: img.position
-          }))
-        ],
+        // Include product images
+        images: productImages.map(img => ({
+          imageUrl: img.imageUrl,
+          altText: img.altText || '',
+          position: img.position
+        })),
         // Include variants if present
         variants: form.variants
       };
@@ -871,238 +777,38 @@ export default function ProductEditPage() {
                   Product photos
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Add Image URL form */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-medium">Add Image by URL</h4>
-                  <div className="flex gap-2 items-center">
-                    <Button 
-                      type="button" 
-                      size="sm"
-                      onClick={() => {
-                        const urlInput = document.getElementById("add-image-url") as HTMLInputElement;
-                        const altInput = document.getElementById("add-image-alt") as HTMLInputElement;
-                        if (urlInput && urlInput.value) {
-                          addImageFromUrl(urlInput.value, altInput?.value || "");
-                          urlInput.value = "";
-                          if (altInput) altInput.value = "";
-                        }
-                      }}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add
-                    </Button>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 flex-1">
-                      <Input 
-                        id="add-image-url" 
-                        placeholder="https://example.com/image.jpg" 
-                      />
-                      <Input 
-                        id="add-image-alt" 
-                        placeholder="Image description" 
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Existing Images */}
-                <div className="border-t my-4 pt-4">
-                  <h4 className="font-medium mb-2">Product Images ({images.length})</h4>
-                  
-                  {images.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No images added yet. Add an image using the form above or upload a file below.
-                    </p>
-                  ) : (
-                    <div className="space-y-3">
-                      {images.map((image, index) => (
-                        <div 
-                          key={index}
-                          className="border rounded-md p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3"
-                        >
-                          <div className="flex items-center gap-1">
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="sm"
-                              disabled={index === 0} 
-                              onClick={() => moveImage(index, index - 1)}
-                              className="px-1"
-                            >
-                              ↑
-                            </Button>
-                            <Button 
-                              type="button"
-                              variant="ghost" 
-                              size="sm"
-                              disabled={index === images.length - 1} 
-                              onClick={() => moveImage(index, index + 1)}
-                              className="px-1"
-                            >
-                              ↓
-                            </Button>
-                            <div className="font-mono font-medium">
-                              {index === 0 ? (
-                                <span className="text-xs text-primary font-bold">Primary</span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">#{index + 1}</span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <div className="w-16 h-16 rounded border overflow-hidden flex-shrink-0 mr-2">
-                            <Image 
-                              src={image.imageUrl} 
-                              alt={image.altText || "Product image"} 
-                              width={64}
-                              height={64}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.src = "https://placehold.co/100x100?text=Error";
-                              }}
-                            />
-                          </div>
-                          
-                          <div className="flex-grow min-w-0">
-                            <div className="text-sm truncate">{image.imageUrl}</div>
-                            <div className="text-xs text-muted-foreground truncate">
-                              {image.altText || "No alt text"}
-                            </div>
-                          </div>
-                
-                          <div className="flex gap-1">
-                            <Button 
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // Create a prompt to edit the image details
-                                const newUrl = window.prompt(
-                                  "Edit image URL:", 
-                                  image.imageUrl
-                                );
-                                if (newUrl !== null) {
-                                  const newAlt = window.prompt(
-                                    "Edit alt text:", 
-                                    image.altText || ""
-                                  );
-                                  if (newAlt !== null) {
-                                    editImage(index, newUrl, newAlt);
-                                  }
-                                }
-                              }}
-                              className="px-2 h-8"
-                            >
-                              Edit
-                            </Button>
-                            <Button 
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeExistingImage(image.id!)}
-                              className="text-destructive hover:text-destructive px-2 h-8"
-                            >
-                              <Trash className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                  <label className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/50 block">
-                    <div className="flex flex-col items-center gap-1">
-                      <Upload className="h-6 w-6 text-muted-foreground" />
-                      <p className="text-sm font-medium">
-                    Drag & drop product images here or click to upload
-                  </p>
-                      <p className="text-xs text-muted-foreground">
-                    (Max 5MB each, up to 5 images)
-                  </p>
-                </div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      multiple 
-                      onChange={handleFileChange} 
-                      className="hidden" 
-                    />
-                  </label>
-                  
-                  {/* Selected files preview */}
-                  {selectedFiles.length > 0 && (
-                    <div className="space-y-3 mt-4">
-                      <h4 className="text-sm font-medium">Selected Files:</h4>
-                      <div className="grid grid-cols-2 gap-2">
-                        {selectedFiles.map((file, index) => (
-                          <div key={index} className="relative rounded-md border bg-muted p-1">
-                            <div className="aspect-square w-full overflow-hidden rounded-sm">
-                              <img
-                                src={URL.createObjectURL(file)}
-                                alt={file.name}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="absolute -top-1 -right-1">
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="h-5 w-5 rounded-full"
-                                onClick={() => removeSelectedFile(index)}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                            <div className="mt-1 truncate text-xs text-muted-foreground px-1">
-                              {file.name.length > 20 ? `${file.name.slice(0, 17)}...` : file.name}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Existing images display - original code */}
-                  {images.length > 0 && (
-                    <div className="space-y-3 mt-4 hidden">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Current Images:</h4>
-                        <Badge variant="outline" className="text-xs">
-                          {images.length} image{images.length !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {images.map((image, idx) => (
-                          <div key={image.id || `image-${idx}`} className="relative rounded-md border bg-muted p-1">
-                            <div className="aspect-square w-full overflow-hidden rounded-sm">
-                              <Image
-                                src={image.imageUrl}
-                                alt={image.altText || "Product image"}
-                                width={200}
-                                height={200}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="absolute -top-1 -right-1">
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="h-5 w-5 rounded-full"
-                                onClick={() => removeExistingImage(image.id!)}
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              <CardContent>
+                <FileUpload
+                  folder="products"
+                  multiple={true}
+                  maxSizeMB={10}
+                  allowedTypes={['image/jpeg', 'image/png', 'image/gif', 'image/webp']}
+                  value={productImages
+                    .filter(img => img && img.imageUrl)
+                    .map((img, index) => {
+                      // Try to detect mimetype from URL extension
+                      const url = img.imageUrl.toLowerCase();
+                      let mimetype = 'image/jpeg'; // default
+                      if (url.includes('.png')) mimetype = 'image/png';
+                      else if (url.includes('.gif')) mimetype = 'image/gif';
+                      else if (url.includes('.webp')) mimetype = 'image/webp';
+                      else if (url.includes('.svg')) mimetype = 'image/svg+xml';
+                      
+                      return {
+                        key: `product-image-${img.position || index}-${img.imageUrl.substring(img.imageUrl.lastIndexOf('/') + 1)}`,
+                        url: img.imageUrl,
+                        originalName: img.altText || `Product image ${index + 1}`,
+                        mimetype,
+                        size: 1024 // Placeholder size
+                      };
+                    })}
+                  onFilesChange={handleFilesChange}
+                  onSuccess={handleUploadSuccess}
+                  onError={handleUploadError}
+                  placeholder="Drag and drop product images here or click to browse"
+                  dragText="Drop product images here to upload"
+                  browseText="Browse Images"
+                />
               </CardContent>
             </Card>
           </div>
