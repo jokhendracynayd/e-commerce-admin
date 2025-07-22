@@ -12,96 +12,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
+import { RefreshCw } from "lucide-react";
 
-// This is a mock function to simulate fetching order data by ID
-async function getOrderById(id: string) {
-  const orders = [
-    {
-      id: "ORD-5312",
-      customer: {
-        name: "John Doe",
-        email: "john@example.com",
-        phone: "+1 (555) 123-4567",
-      },
-      date: "2023-08-15",
-      status: "Delivered",
-      total: 125.99,
-      subtotal: 119.99,
-      tax: 6.00,
-      shippingCost: 0,
-      items: [
-        { id: "1", name: "Premium Headphones", price: 89.99, quantity: 1 },
-        { id: "5", name: "Designer Backpack", price: 29.99, quantity: 1 },
-      ],
-      payment: {
-        method: "Credit Card",
-        cardLast4: "4242",
-        status: "Paid"
-      },
-      shippingInfo: {
-        address: "123 Main St, City, Country",
-        method: "Express Shipping",
-        carrier: "UPS",
-        trackingNumber: "1Z999AA10123456784"
-      },
-      notes: "Please leave the package at the front door.",
-      timeline: [
-        { date: "2023-08-12 10:23", status: "Order Placed" },
-        { date: "2023-08-12 14:45", status: "Payment Confirmed" },
-        { date: "2023-08-13 09:15", status: "Shipped" },
-        { date: "2023-08-15 13:20", status: "Delivered" }
-      ]
-    },
-    {
-      id: "ORD-5313",
-      customer: {
-        name: "Emma Smith",
-        email: "emma@example.com",
-        phone: "+1 (555) 234-5678",
-      },
-      date: "2023-08-15",
-      status: "Processing",
-      total: 89.50,
-      subtotal: 79.50,
-      tax: 5.00,
-      shippingCost: 5.00,
-      items: [
-        { id: "3", name: "Smartphone X", price: 79.50, quantity: 1 }
-      ],
-      payment: {
-        method: "PayPal",
-        email: "emma@example.com",
-        status: "Paid"
-      },
-      shippingInfo: {
-        address: "456 Oak St, Town, Country",
-        method: "Standard Shipping",
-        carrier: "USPS",
-        trackingNumber: "9400123456789012345678"
-      },
-      notes: "",
-      timeline: [
-        { date: "2023-08-15 09:10", status: "Order Placed" },
-        { date: "2023-08-15 09:12", status: "Payment Confirmed" },
-        { date: "2023-08-15 14:30", status: "Processing" }
-      ]
-    }
-  ];
+import { ordersService } from "@/services/ordersService";
+import { Order as BackendOrder, OrderTimeline } from "@/types/order";
 
-  // Simulate async behavior with a small delay
-  await new Promise(resolve => setTimeout(resolve, 10));
-  return orders.find(order => order.id === id) || orders[0];
-}
-
-// Define types
-type OrderItem = {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-};
-
-type Order = {
+// UI-facing order type (mirrors previous structure to keep UI unchanged)
+type UIOrder = {
   id: string;
   customer: {
     name: string;
@@ -114,7 +31,12 @@ type Order = {
   subtotal: number;
   tax: number;
   shippingCost: number;
-  items: OrderItem[];
+  items: {
+    id: string;
+    name: string;
+    price: number;
+    quantity: number;
+  }[];
   payment: {
     method: string;
     cardLast4?: string;
@@ -134,19 +56,85 @@ type Order = {
   }[];
 };
 
+// Transform backend order & timeline into UIOrder shape
+const transformOrder = (
+  order: BackendOrder,
+  timelineEvents: OrderTimeline[],
+): UIOrder => {
+  // Build customer info
+  const customerName = order.user
+    ? `${order.user.firstName || ""} ${order.user.lastName || ""}`.trim() ||
+      order.user.email
+    : "Guest Customer";
+
+  // Address formatting helper
+  const formatAddress = (addr: any) => {
+    if (!addr) return "";
+    const { street, city, state, zipCode, country } = addr;
+    return [street, city, state, zipCode, country].filter(Boolean).join(", ");
+  };
+
+  return {
+    id: order.orderNumber || order.id,
+    customer: {
+      name: customerName,
+      email: order.user?.email || "",
+      phone: order.user?.phone || order.shippingAddress?.mobileNumber|| "", // Phone not available in current response
+    },
+    date: new Date(order.placedAt).toISOString().substring(0, 10),
+    status: order.status,
+    total: order.total,
+    subtotal: order.subtotal,
+    tax: order.tax,
+    shippingCost: order.shippingFee,
+    items: order.items.map((item) => ({
+      id: item.id,
+      name: item.product?.title || item.variant?.variantName || "Item",
+      price: item.unitPrice,
+      quantity: item.quantity,
+    })),
+    payment: {
+      method: order.paymentMethod || "",
+      status: order.paymentStatus,
+    },
+    shippingInfo: {
+      address: formatAddress(order.shippingAddress),
+      method: "",
+      carrier: "",
+      trackingNumber: "",
+    },
+    notes: "",
+    timeline: timelineEvents.map((e) => ({
+      date: new Date(e.createdAt).toLocaleString(),
+      status: e.status,
+    })),
+  };
+};
+
 export default function OrderEditPage() {
   // Use the useParams hook to get the ID parameter from the URL
   const params = useParams();
   const orderId = params.id as string;
   
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<UIOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const orderData = await getOrderById(orderId);
-        setOrder(orderData as Order);
+        // Fetch order details and timeline in parallel
+        const [orderRes, timelineRes] = await Promise.all([
+          ordersService.getOrderById(orderId),
+          ordersService.getOrderTimeline(orderId),
+        ]);
+
+        if (orderRes.success && orderRes.data) {
+          const timelineEvents = timelineRes.success ? timelineRes.data : [];
+          const uiOrder = transformOrder(orderRes.data as BackendOrder, timelineEvents);
+          setOrder(uiOrder);
+        } else {
+          console.error("Failed to load order", orderRes.error);
+        }
       } catch (error) {
         console.error("Error fetching order:", error);
       } finally {
@@ -160,8 +148,9 @@ export default function OrderEditPage() {
   if (loading) {
     return (
       <MainLayout>
-        <div className="flex h-full items-center justify-center">
-          <p>Loading order details...</p>
+        <div className="flex h-full items-center justify-center h-64">
+          <RefreshCw className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading order details...</span>
         </div>
       </MainLayout>
     );
@@ -224,11 +213,12 @@ export default function OrderEditPage() {
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Processing">Processing</SelectItem>
-                        <SelectItem value="Shipped">Shipped</SelectItem>
-                        <SelectItem value="Delivered">Delivered</SelectItem>
-                        <SelectItem value="Cancelled">Cancelled</SelectItem>
-                        <SelectItem value="Refunded">Refunded</SelectItem>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="PROCESSING">Processing</SelectItem>
+                        <SelectItem value="SHIPPED">Shipped</SelectItem>
+                        <SelectItem value="DELIVERED">Delivered</SelectItem>
+                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                        <SelectItem value="REFUNDED">Refunded</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -380,6 +370,7 @@ export default function OrderEditPage() {
                       <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="cod">Cash on Delivery</SelectItem>
                       <SelectItem value="Credit Card">Credit Card</SelectItem>
                       <SelectItem value="PayPal">PayPal</SelectItem>
                       <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
@@ -399,10 +390,10 @@ export default function OrderEditPage() {
                       <SelectValue placeholder="Select payment status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Paid">Paid</SelectItem>
-                      <SelectItem value="Failed">Failed</SelectItem>
-                      <SelectItem value="Refunded">Refunded</SelectItem>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="PAID">Paid</SelectItem>
+                      <SelectItem value="FAILED">Failed</SelectItem>
+                      <SelectItem value="REFUNDED">Refunded</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

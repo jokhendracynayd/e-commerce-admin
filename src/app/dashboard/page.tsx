@@ -1,8 +1,68 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart3, Box, DollarSign, ShoppingCart, TrendingUp, Users } from "lucide-react";
+import { BarChart3, Box, DollarSign, ShoppingCart, TrendingUp, Users, RefreshCw, Currency } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
+import { useToast } from "@/components/ui/use-toast";
+import ordersService from "@/services/ordersService";
+import { Order } from "@/types/order";
+import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
 
 export default function DashboardPage() {
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+  const { toast } = useToast();
+
+  // Fetch recent orders
+  const fetchRecentOrders = async () => {
+    try {
+      setOrdersLoading(true);
+      
+      const response = await ordersService.getOrders({
+        limit: 5,
+        sortBy: 'placedAt',
+        sortOrder: 'desc'
+      });
+      
+      if (response.success) {
+        setRecentOrders(response.data.orders);
+      } else {
+        console.error("Failed to load recent orders:", response.error);
+        toast({
+          title: "Error",
+          description: "Failed to load recent orders",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      console.error("Error fetching recent orders:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load recent orders",
+        variant: "destructive",
+      });
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentOrders();
+  }, []);
+
+  // Format customer name
+  const formatCustomerName = (order: Order) => {
+    if (order.user) {
+      const fullName = `${order.user.firstName || ''} ${order.user.lastName || ''}`.trim();
+      return fullName || order.user.email;
+    }
+    return 'Guest Customer';
+  };
+
+
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
@@ -85,24 +145,42 @@ export default function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map((order) => (
-                  <div key={order} className="flex items-center gap-4">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <ShoppingCart className="h-4 w-4 text-primary" />
+              {ordersLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Loading orders...</span>
+                </div>
+              ) : recentOrders.length === 0 ? (
+                <div className="flex items-center justify-center h-32">
+                  <p className="text-muted-foreground">No recent orders found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentOrders.map((order) => (
+                    <div key={order.id} className="flex items-center gap-4">
+                      <div className="rounded-full bg-primary/10 p-2">
+                        <ShoppingCart className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">
+                          <Link 
+                            href={`/orders/${order.id}/view`} 
+                            className="hover:underline"
+                          >
+                            {order.orderNumber}
+                          </Link>
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatCustomerName(order)}
+                        </p>
+                      </div>
+                      <div className="text-sm font-medium">
+                        {formatCurrency(order.total,order.currency)}
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Order #{order}23456</p>
-                      <p className="text-xs text-muted-foreground">
-                        Customer #{order}0123
-                      </p>
-                    </div>
-                    <div className="text-sm font-medium">
-                      ${(order * 100).toFixed(2)}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

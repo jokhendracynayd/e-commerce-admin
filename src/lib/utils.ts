@@ -46,3 +46,16 @@ export function truncateText(text: string | undefined, maxLength: number): strin
   if (!text) return "";
   return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
 }
+
+ /**
+ * Formats a number as currency with the specified currency code
+ * @param amount The amount to format
+ * @param currency The currency code (e.g., 'USD', 'EUR', 'INR')
+ * @returns Formatted currency string
+ */
+export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency || 'USD',
+  }).format(amount);
+};
