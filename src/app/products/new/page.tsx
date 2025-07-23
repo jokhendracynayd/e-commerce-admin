@@ -12,10 +12,10 @@ import { useRouter } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  productsApi, 
-  CreateProductDto, 
-  Dimensions, 
+import {
+  productsApi,
+  CreateProductDto,
+  Dimensions,
   CreateProductImageDto,
   CreateProductVariantDto
 } from "@/lib/api/products-api";
@@ -57,17 +57,17 @@ const ProductPreviewModal = dynamic(() => import("@/components/ProductPreviewMod
 export default function NewProductPage() {
   const router = useRouter();
 
-  
+
   // Add this for auto-save timer
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   // Add state for tracking completed sections and draft
   const [completedSections, setCompletedSections] = useState<ProductDraftSection[]>([]);
   const [hasDraft, setHasDraft] = useState<boolean>(false);
   const [draftId, setDraftId] = useState<string>("");
   const [showDraftAlert, setShowDraftAlert] = useState<boolean>(false);
   const [lastSaved, setLastSaved] = useState<number | null>(null);
-  
+
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -91,7 +91,7 @@ export default function NewProductPage() {
   const [metaDescription, setMetaDescription] = useState("");
   const [metaKeywords, setMetaKeywords] = useState("");
   const [productImages, setProductImages] = useState<CreateProductImageDto[]>([]);
-  
+
   // Debug product images state changes
   useEffect(() => {
     console.log('productImages state changed:', productImages);
@@ -100,12 +100,12 @@ export default function NewProductPage() {
   const [currency, setCurrency] = useState<string>("INR");
   const [variants, setVariants] = useState<CreateProductVariantDto[]>([]);
 
-  
+
   // Form validation and submission state
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Data loading state
   const [categories, setCategories] = useState<any[]>([]);
   const [allCategories, setAllCategories] = useState<any[]>([]);
@@ -116,13 +116,13 @@ export default function NewProductPage() {
   const [loadingBrands, setLoadingBrands] = useState(false);
   const [loadingTags, setLoadingTags] = useState(false);
   const [loadingSubcategories, setLoadingSubcategories] = useState(false);
-  
+
   // Add state for product specifications
   const [specifications, setSpecifications] = useState<CreateProductSpecificationDto[]>([]);
-  
+
   // Add a new state variable for lowStockThreshold near the other state variables
   const [lowStockThreshold, setLowStockThreshold] = useState<string>("5");
-  
+
   // Available currencies
   const currencies = [
     { code: "INR", name: "Indian Rupee (₹)" },
@@ -133,9 +133,9 @@ export default function NewProductPage() {
     { code: "CAD", name: "Canadian Dollar (C$)" },
     { code: "AUD", name: "Australian Dollar (A$)" }
   ];
-  
+
   // Add product preview functionality
-  const { 
+  const {
     isPreviewOpen,
     previewDevice,
     previewContext,
@@ -145,7 +145,7 @@ export default function NewProductPage() {
     setPreviewDevice,
     setPreviewContext
   } = useProductPreview();
-  
+
   // Fetch categories, brands, and tags on page load
   useEffect(() => {
     const fetchData = async () => {
@@ -153,34 +153,34 @@ export default function NewProductPage() {
         setLoadingCategories(true);
         setLoadingBrands(true);
         setLoadingTags(true);
-        
+
         const [categoryTreeData, brandsData, tagsData] = await Promise.all([
           categoriesApi.getCategoryTree(),
           brandsApi.getBrands(),
           tagsApi.getTags()
         ]);
-        
+
         // Create a flat list of all categories
         const flattenCategories = (categories: any[], parentId: string | null = null): any[] => {
           return categories.reduce((acc, category) => {
             const children = category.children || [];
-            const current = { 
-              ...category, 
+            const current = {
+              ...category,
               parentId
             };
-            
+
             // Remove the children property from the current category
             delete current.children;
-            
+
             return [...acc, current, ...flattenCategories(children, category.id)];
           }, []);
         };
-        
+
         const allCategories = flattenCategories(categoryTreeData);
-        
+
         // Show all categories
         setCategories(allCategories);
-        
+
         // Store all categories for filtering subcategories later
         setAllCategories(allCategories);
         setBrands(brandsData);
@@ -194,21 +194,21 @@ export default function NewProductPage() {
         setLoadingTags(false);
       }
     };
-    
+
     fetchData();
   }, []);
-  
+
   // Update subcategories when category changes
   useEffect(() => {
     if (categoryId) {
       setLoadingSubcategories(true);
       // Reset subcategory selection when parent category changes
       setSubCategoryId("");
-      
+
       // Filter all categories to find subcategories of the selected category
       const subs = allCategories.filter(cat => cat.parentId === categoryId);
       setSubcategories(subs);
-      
+
       setLoadingSubcategories(false);
     } else {
       // Clear subcategories when no parent category is selected
@@ -216,50 +216,50 @@ export default function NewProductPage() {
       setSubCategoryId("");
     }
   }, [categoryId, allCategories]);
-  
+
   // Generate SKU for product
   const generateSku = (title: string): string => {
     if (!title.trim()) return "";
-    
+
     // Extract prefix from title (first 3 characters, uppercase)
     const prefix = title
       .substring(0, 3)
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '');
-    
+
     // Add timestamp and random string for uniqueness
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.random().toString(36).substring(2, 5).toUpperCase();
-    
+
     return `${prefix}-${timestamp}-${random}`;
   };
-  
+
   // Generate SKU for variant
   const generateVariantSku = (baseSku: string, variantName: string): string => {
     if (!baseSku.trim() || !variantName.trim()) return "";
-    
+
     // Extract suffix from variant name (first 5 characters, uppercase)
     const variantSuffix = variantName
       .substring(0, 5)
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, '')
       .padEnd(5, 'X');
-    
+
     return `${baseSku}-${variantSuffix}`;
   };
-  
+
   // Update SKU when title changes
   useEffect(() => {
     if (title && !sku) {
       setSku(generateSku(title));
     }
   }, [title, sku]);
-  
+
   // Add a new variant with auto-generated SKU
   const addVariant = () => {
     const variantName = "";
     const variantSku = sku ? generateVariantSku(sku, variantName) : "";
-    
+
     setVariants([
       ...variants,
       {
@@ -272,70 +272,70 @@ export default function NewProductPage() {
       }
     ]);
   };
-  
+
   // Update a variant
   const updateVariant = (index: number, field: keyof CreateProductVariantDto, value: any) => {
     const updatedVariants = [...variants];
     updatedVariants[index] = {
       ...updatedVariants[index],
-      [field]: field === 'stockQuantity' || field === 'price' || field === 'additionalPrice' 
+      [field]: field === 'stockQuantity' || field === 'price' || field === 'additionalPrice'
         ? Number(value) || 0 // Ensure we always have a number, default to 0
         : value
     };
-    
+
     // Auto-generate SKU when variant name changes
     if (field === 'variantName' && sku) {
       updatedVariants[index].sku = generateVariantSku(sku, value);
     }
-    
+
     setVariants(updatedVariants);
   };
-  
+
   // Remove a variant
   const removeVariant = (index: number) => {
     const updatedVariants = variants.filter((_, i) => i !== index);
     setVariants(updatedVariants);
   };
-  
 
-  
 
-  
 
-  
+
+
+
+
   // Memoize the dimensions object to prevent unnecessary re-renders
   const dimensions = useMemo(() => ({
     length: length || "",
     width: width || "",
     height: height || ""
   }), [length, width, height]);
-  
+
   // Memoize the filtered subcategories
   const filteredSubcategories = useMemo(() => {
     if (!categoryId) return [];
     return allCategories.filter(cat => cat.parentId === categoryId);
   }, [categoryId, allCategories]);
-  
+
   // Optimize image URLs by using a lazy-access approach
   const imageObjectURLs = useMemo(() => {
-    return productImages.map(image => ({ 
-      image, 
+    return productImages.map(image => ({
+      image,
       // Use helper function to safely create object URL
       url: getSafeImageSrc(image.imageUrl)
     }));
   }, [productImages]);
-  
+
   // Update the form validation function to be memoized
   const validateForm = useCallback((): boolean => {
     const newErrors: { [key: string]: string } = {};
-    
+
     // Validate required fields
     if (!title.trim()) newErrors.title = "Product title is required";
     if (!sku.trim()) newErrors.sku = "SKU is required";
     if (!price || isNaN(Number(price)) || Number(price) <= 0) {
       newErrors.price = "Valid price is required";
     }
-    
+
     // Validate variants
     variants.forEach((variant, index) => {
       if (!variant.variantName) {
@@ -348,7 +348,7 @@ export default function NewProductPage() {
         newErrors[`variant_${index}_price`] = "Variant price must be greater than 0";
       }
     });
-    
+
     // Validate image URLs
     productImages.forEach((image, index) => {
       if (!image.imageUrl) {
@@ -362,13 +362,13 @@ export default function NewProductPage() {
         }
       }
     });
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [title, sku, price, variants, productImages]);
-  
 
-  
+
+
   // Function to collect all form data
   const collectFormData = useCallback(() => {
     return {
@@ -403,7 +403,7 @@ export default function NewProductPage() {
     sku, barcode, weight, dimensions, stockQuantity,
     brandId, categoryId, subCategoryId, isActive, isFeatured,
     visibility, metaTitle, metaDescription, metaKeywords,
-    productImages, selectedTags, currency, variants, 
+    productImages, selectedTags, currency, variants,
     specifications, lowStockThreshold
   ]);
 
@@ -412,17 +412,17 @@ export default function NewProductPage() {
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
-    
+
     autoSaveTimerRef.current = setTimeout(() => {
       try {
         const formData = collectFormData();
-        
+
         // Only save if there's at least some data (title or SKU)
         if (formData.title || formData.sku) {
           // Determine completed sections
           const sections = determineCompletedSections(formData);
           setCompletedSections(sections);
-          
+
           // Save draft
           const newDraftId = saveProductDraft(formData, sections, draftId, true);
           setDraftId(newDraftId);
@@ -441,7 +441,7 @@ export default function NewProductPage() {
       const formData = collectFormData();
       const sections = determineCompletedSections(formData);
       setCompletedSections(sections);
-      
+
       const newDraftId = saveProductDraft(formData, sections, draftId);
       setDraftId(newDraftId);
       setHasDraft(true);
@@ -454,11 +454,11 @@ export default function NewProductPage() {
   // Function to load draft
   const loadDraft = useCallback(() => {
     const draft = loadProductDraft();
-    
+
     if (draft && draft.data) {
       // Set form fields from draft data
       const data = draft.data;
-      
+
       // Basic info
       if (data.title) setTitle(data.title);
       if (data.description) setDescription(data.description);
@@ -467,38 +467,38 @@ export default function NewProductPage() {
       if (data.discountPrice) setDiscountPrice(data.discountPrice.toString());
       if (data.sku) setSku(data.sku);
       if (data.barcode) setBarcode(data.barcode);
-      
+
       // Dimensions
       if (data.dimensions?.length) setLength(data.dimensions.length.toString());
       if (data.dimensions?.width) setWidth(data.dimensions.width.toString());
       if (data.dimensions?.height) setHeight(data.dimensions.height.toString());
       if (data.weight) setWeight(data.weight.toString());
-      
+
       // Inventory
       if (data.stockQuantity) setStockQuantity(data.stockQuantity.toString());
       if (data.lowStockThreshold) setLowStockThreshold(data.lowStockThreshold.toString());
-      
+
       // Categories and relations
       if (data.brandId) setBrandId(data.brandId);
       if (data.categoryId) setCategoryId(data.categoryId);
       if (data.subCategoryId) setSubCategoryId(data.subCategoryId);
-      
+
       // Product status
       if (data.isActive !== undefined) setIsActive(data.isActive);
       if (data.isFeatured !== undefined) setIsFeatured(data.isFeatured);
       if (data.visibility) setVisibility(data.visibility);
-      
+
       // SEO
       if (data.metaTitle) setMetaTitle(data.metaTitle);
       if (data.metaDescription) setMetaDescription(data.metaDescription);
       if (data.metaKeywords) setMetaKeywords(data.metaKeywords);
-      
+
       // Complex arrays
       if (data.productImages) setProductImages(data.productImages);
       if (data.selectedTags) setSelectedTags(data.selectedTags);
       if (data.variants) setVariants(data.variants);
       if (data.currency) setCurrency(data.currency);
-      
+
       // Specifications - ensure we have a complete specifications array
       if (data.specifications && Array.isArray(data.specifications)) {
         // Make sure each specification has all required properties
@@ -510,17 +510,17 @@ export default function NewProductPage() {
           sortOrder: spec.sortOrder || 0,
           isFilterable: spec.isFilterable !== undefined ? spec.isFilterable : true
         })).filter(spec => spec.specKey && spec.specKey.trim() !== "");
-        
+
         setSpecifications(validSpecs);
       }
-      
+
       // Update state
       setDraftId(draft.draftId);
       setHasDraft(true);
       setLastSaved(draft.lastUpdated);
       setCompletedSections(draft.completedSections);
       setShowDraftAlert(false);
-      
+
       toast.success("Draft loaded", {
         description: "Your saved work has been restored"
       });
@@ -534,7 +534,7 @@ export default function NewProductPage() {
     setDraftId("");
     setShowDraftAlert(false);
   }, []);
-  
+
   // Set up form field change listeners to trigger auto-save
   useEffect(() => {
     autoSaveDraft();
@@ -547,7 +547,7 @@ export default function NewProductPage() {
     specifications, lowStockThreshold,
     autoSaveDraft
   ]);
-  
+
   // Check for existing draft on initial load
   useEffect(() => {
     const draft = loadProductDraft();
@@ -559,7 +559,7 @@ export default function NewProductPage() {
       setCompletedSections(draft.completedSections);
     }
   }, []);
-  
+
   // Clear auto-save timer on unmount
   useEffect(() => {
     return () => {
@@ -568,12 +568,12 @@ export default function NewProductPage() {
       }
     };
   }, []);
-  
+
   // Validate images section when productImages changes
   useEffect(() => {
     setCompletedSections(prev => {
       const otherSections = prev.filter(section => section !== 'images');
-      
+
       // Check if images section should be completed
       if (productImages.length > 0) {
         const validImages = productImages.filter(img => img && img.imageUrl && img.imageUrl.trim());
@@ -581,11 +581,11 @@ export default function NewProductPage() {
           return [...otherSections, 'images'];
         }
       }
-      
+
       return otherSections;
     });
   }, [productImages]);
-  
+
   // Add handler for specifications change
   const handleSpecificationsChange = (newSpecs: CreateProductSpecificationDto[]) => {
     setSpecifications(newSpecs);
@@ -594,7 +594,7 @@ export default function NewProductPage() {
   // Update the handleSubmit function to include specifications
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       // Scroll to the first error
       const firstErrorEl = document.querySelector(".border-destructive");
@@ -603,10 +603,10 @@ export default function NewProductPage() {
       }
       return;
     }
-    
+
     setSubmitting(true);
     setError(null);
-    
+
     try {
       // Prepare dimensions object if any dimension field is provided
       let dimensions: Dimensions | undefined;
@@ -617,14 +617,14 @@ export default function NewProductPage() {
           height: Number(height) || 0
         };
       }
-      
+
       // Create product data object
       const productData: CreateProductDto = {
         title: title.trim(),
         sku: sku.trim(),
         price: Number(price),
       };
-      
+
       // Add optional fields if they have values
       if (description) productData.description = description;
       if (shortDescription) productData.shortDescription = shortDescription;
@@ -652,16 +652,16 @@ export default function NewProductPage() {
           stockQuantity: variant.stockQuantity || 0
         }));
       }
-      
+
       // These properties have default values
       productData.isActive = isActive;
       productData.isFeatured = isFeatured;
       productData.visibility = visibility;
       productData.currency = currency;
-      
+
       // Call API to create product
       const result = await productsApi.createProduct(productData);
-      
+
       // If we have specifications, save them
       if (specifications.length > 0) {
         // Update product IDs in specifications
@@ -669,7 +669,7 @@ export default function NewProductPage() {
           ...spec,
           productId: result.id
         }));
-        
+
         try {
           // Save specifications in bulk
           await specificationsApi.createProductSpecificationsBulk(
@@ -681,18 +681,18 @@ export default function NewProductPage() {
           toast.error("Product created but specifications could not be saved");
         }
       }
-      
+
       // Add this at the end after successful creation
       clearProductDraft(true); // Silently clear the draft
-      
+
       // Show success message
       toast.success("Product created successfully");
-      
+
       // Navigate to product detail page
       router.push(`/products/${result.id}`);
     } catch (error: any) {
       console.error("Error creating product:", error);
-      
+
       // Extract error message from API response
       let errorMessage = "Failed to create product";
       if (error.response) {
@@ -701,7 +701,7 @@ export default function NewProductPage() {
           if (Array.isArray(error.response.data.message)) {
             errorMessage = error.response.data.message.join('\n');
           } else {
-          errorMessage = error.response.data.message;
+            errorMessage = error.response.data.message;
           }
         } else if (error.response.status === 400) {
           errorMessage = "Invalid product data. Please check all required fields.";
@@ -711,18 +711,18 @@ export default function NewProductPage() {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
   };
-  
+
   // Handle tag selection
   const toggleTag = (tagId: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tagId) 
-        ? prev.filter(id => id !== tagId) 
+    setSelectedTags(prev =>
+      prev.includes(tagId)
+        ? prev.filter(id => id !== tagId)
         : [...prev, tagId]
     );
   };
@@ -738,11 +738,11 @@ export default function NewProductPage() {
       imageUrl: img.imageUrl,
       altText: img.altText
     })),
-    brand: brandId ? { 
-      name: brands.find(b => b.id === brandId)?.name || '' 
+    brand: brandId ? {
+      name: brands.find(b => b.id === brandId)?.name || ''
     } : undefined,
-    category: categoryId ? { 
-      name: categories.find(c => c.id === categoryId)?.name || '' 
+    category: categoryId ? {
+      name: categories.find(c => c.id === categoryId)?.name || ''
     } : undefined,
     isActive,
     isFeatured,
@@ -761,17 +761,17 @@ export default function NewProductPage() {
               <h1 className="text-3xl font-bold">Add New Product</h1>
             </div>
             <div className="flex gap-2">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={togglePreview}
                 title="Preview product"
               >
                 <Eye className="mr-2 h-4 w-4" />
                 Preview
               </Button>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 variant="outline"
                 onClick={saveDraft}
                 disabled={submitting}
@@ -785,7 +785,7 @@ export default function NewProductPage() {
               </Button>
             </div>
           </div>
-          
+
           {showDraftAlert && (
             <LazyProductDraftAlert
               draft={{
@@ -798,14 +798,14 @@ export default function NewProductPage() {
               onDiscard={discardDraft}
             />
           )}
-          
+
           {hasDraft && (
             <LazyProductFormProgress
               completedSections={completedSections}
               className="mb-2"
             />
           )}
-          
+
           {error && (
             <div className="bg-destructive/10 border border-destructive text-destructive p-4 rounded-md">
               {error}
@@ -828,9 +828,9 @@ export default function NewProductPage() {
                         Product Title*
                         <FormTooltip content="Enter a clear, descriptive title that will help customers find your product. Good titles include key product attributes like brand, model, color or size." />
                       </Label>
-                      <Input 
-                        id="title" 
-                        placeholder="Enter product title" 
+                      <Input
+                        id="title"
+                        placeholder="Enter product title"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         className={errors.title ? "border-destructive" : ""}
@@ -846,19 +846,19 @@ export default function NewProductPage() {
                           SKU* (Auto-generated)
                           <FormTooltip content="SKU (Stock Keeping Unit) is a unique identifier for your product. It's used for inventory management and helps track products across your store." />
                         </Label>
-                        <Button 
-                          type="button" 
-                          size="sm" 
-                          variant="outline" 
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
                           className="h-7 text-xs"
                           onClick={() => setSku(generateSku(title))}
                         >
                           Regenerate
                         </Button>
                       </div>
-                      <Input 
-                        id="sku" 
-                        placeholder="Enter SKU code" 
+                      <Input
+                        id="sku"
+                        placeholder="Enter SKU code"
                         value={sku}
                         onChange={(e) => setSku(e.target.value)}
                         className={errors.sku ? "border-destructive" : ""}
@@ -870,12 +870,19 @@ export default function NewProductPage() {
                         SKU is auto-generated based on the product title, but you can edit it manually
                       </p>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="brand" className="flex items-center">
-                        Brand
-                        <FormTooltip content="Associating your product with a brand helps with categorization and makes it easier for customers to find related products." />
-                      </Label>
+
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>
+                          Brand
+                          <FormTooltip content="Associating your product with a brand helps with categorization and makes it easier for customers to find related products." />
+
+                        </Label>
+                        <Link href="/brands/new" className="text-sm text-blue-600 hover:text-blue-800">
+                          + Create New Brand
+                        </Link>
+                      </div>
                       <Select value={brandId} onValueChange={setBrandId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select brand" />
@@ -893,12 +900,19 @@ export default function NewProductPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="category" className="flex items-center">
-                        Category
-                        <FormTooltip content="Categories help organize your products and make them easier to find. Select the most relevant category for this product." />
-                      </Label>
+
+                      <div className="flex items-center justify-between mb-2">
+                        <Label>
+                          Category
+                          <FormTooltip content="Categories help organize your products and make them easier to find. Select the most relevant category for this product." />
+
+                        </Label>
+                        <Link href="/categories/new" className="text-sm text-blue-600 hover:text-blue-800">
+                          + Create New Category
+                        </Link>
+                      </div>
                       <Select value={categoryId} onValueChange={setCategoryId}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
@@ -916,9 +930,9 @@ export default function NewProductPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     {categoryId && (
-                    <div className="space-y-2">
+                      <div className="space-y-2">
                         <Label htmlFor="subcategory">Subcategory</Label>
                         <Select value={subCategoryId} onValueChange={setSubCategoryId}>
                           <SelectTrigger>
@@ -941,17 +955,17 @@ export default function NewProductPage() {
                         <p className="text-xs text-muted-foreground">Optional</p>
                       </div>
                     )}
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="price" className="flex items-center">
                         Price*
                         <FormTooltip content="Set your product's base price. This is what customers will pay when there's no discount or sale applied." />
                       </Label>
-                      <Input 
-                        id="price" 
+                      <Input
+                        id="price"
                         type="number"
-                        step="0.01" 
-                        placeholder="0.00" 
+                        step="0.01"
+                        placeholder="0.00"
                         value={price}
                         onChange={(e) => setPrice(e.target.value)}
                         className={errors.price ? "border-destructive" : ""}
@@ -960,7 +974,7 @@ export default function NewProductPage() {
                         <p className="text-sm text-destructive">{errors.price}</p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="currency">Currency</Label>
                       <Select value={currency} onValueChange={setCurrency}>
@@ -976,55 +990,55 @@ export default function NewProductPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="discountPrice" className="flex items-center">
                         Discount Price
                         <FormTooltip content="Optional discounted price that will be shown as a special offer. Leave empty if your product isn't on sale." />
                       </Label>
-                      <Input 
-                        id="discountPrice" 
+                      <Input
+                        id="discountPrice"
                         type="number"
-                        step="0.01" 
-                        placeholder="0.00" 
+                        step="0.01"
+                        placeholder="0.00"
                         value={discountPrice}
                         onChange={(e) => setDiscountPrice(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="barcode">Barcode</Label>
-                      <Input 
-                        id="barcode" 
-                        placeholder="Enter barcode" 
+                      <Input
+                        id="barcode"
+                        placeholder="Enter barcode"
                         value={barcode}
                         onChange={(e) => setBarcode(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="stockQuantity" className="flex items-center">
                         Stock Quantity*
                         <FormTooltip content="Enter the number of units currently available for sale. This will decrease as orders are placed." />
                       </Label>
-                      <Input 
-                        id="stockQuantity" 
+                      <Input
+                        id="stockQuantity"
                         type="number"
-                        placeholder="0" 
+                        placeholder="0"
                         value={stockQuantity}
                         onChange={(e) => setStockQuantity(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="lowStockThreshold" className="flex items-center">
                         Low Stock Threshold
                         <FormTooltip content="When product stock falls below this value, it will be marked as 'Low Stock'" />
                       </Label>
-                      <Input 
-                        id="lowStockThreshold" 
+                      <Input
+                        id="lowStockThreshold"
                         type="number"
-                        placeholder="5" 
+                        placeholder="5"
                         value={lowStockThreshold}
                         onChange={(e) => setLowStockThreshold(e.target.value)}
                       />
@@ -1032,27 +1046,27 @@ export default function NewProductPage() {
                         Default value is 5. When stock is below this threshold, products will be marked as "Low Stock"
                       </p>
                     </div>
-                                
+
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="shortDescription">Short Description</Label>
-                      <Textarea 
-                        id="shortDescription" 
+                      <Textarea
+                        id="shortDescription"
                         rows={2}
-                        placeholder="Brief product description" 
+                        placeholder="Brief product description"
                         value={shortDescription}
                         onChange={(e) => setShortDescription(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2 md:col-span-2">
                       <Label htmlFor="description" className="flex items-center">
                         Full Description
                         <FormTooltip content="Provide a comprehensive description including all relevant product details, features, and benefits. Use formatting to make it readable." />
                       </Label>
-                      <Textarea 
-                        id="description" 
+                      <Textarea
+                        id="description"
                         rows={5}
-                        placeholder="Full product description" 
+                        placeholder="Full product description"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                       />
@@ -1060,7 +1074,7 @@ export default function NewProductPage() {
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Product Variants</CardTitle>
@@ -1075,9 +1089,9 @@ export default function NewProductPage() {
                         <div key={index} className="border rounded-md p-4 space-y-4">
                           <div className="flex justify-between items-center">
                             <h4 className="font-medium">Variant #{index + 1}</h4>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
+                            <Button
+                              type="button"
+                              variant="ghost"
                               size="sm"
                               onClick={() => removeVariant(index)}
                             >
@@ -1087,9 +1101,9 @@ export default function NewProductPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor={`variant-${index}-name`}>Variant Name*</Label>
-                              <Input 
-                                id={`variant-${index}-name`} 
-                                placeholder="e.g., Red, XL" 
+                              <Input
+                                id={`variant-${index}-name`}
+                                placeholder="e.g., Red, XL"
                                 value={variant.variantName}
                                 onChange={(e) => updateVariant(index, 'variantName', e.target.value)}
                                 className={errors[`variant_${index}_name`] ? "border-destructive" : ""}
@@ -1098,12 +1112,12 @@ export default function NewProductPage() {
                                 <p className="text-sm text-destructive">{errors[`variant_${index}_name`]}</p>
                               )}
                             </div>
-                            
+
                             <div className="space-y-2">
                               <Label htmlFor={`variant-${index}-sku`}>Variant SKU* (Auto-generated)</Label>
-                              <Input 
-                                id={`variant-${index}-sku`} 
-                                placeholder="Enter variant SKU" 
+                              <Input
+                                id={`variant-${index}-sku`}
+                                placeholder="Enter variant SKU"
                                 value={variant.sku}
                                 onChange={(e) => updateVariant(index, 'sku', e.target.value)}
                                 className={errors[`variant_${index}_sku`] ? "border-destructive" : ""}
@@ -1115,49 +1129,49 @@ export default function NewProductPage() {
                                 Auto-generated based on product SKU and variant name
                               </p>
                             </div>
-                            
+
                             <div className="space-y-2">
                               <Label htmlFor={`variant-${index}-price`}>Price (leave empty to use base price)</Label>
-                              <Input 
-                                id={`variant-${index}-price`} 
+                              <Input
+                                id={`variant-${index}-price`}
                                 type="number"
                                 step="0.01"
-                                placeholder="0.00" 
+                                placeholder="0.00"
                                 value={variant.price || ""}
                                 onChange={(e) => updateVariant(index, 'price', e.target.value || null)}
                               />
                             </div>
-                            
+
                             <div className="space-y-2">
                               <Label htmlFor={`variant-${index}-additional`}>Additional Price</Label>
-                              <Input 
-                                id={`variant-${index}-additional`} 
+                              <Input
+                                id={`variant-${index}-additional`}
                                 type="number"
                                 step="0.01"
-                                placeholder="0.00" 
+                                placeholder="0.00"
                                 value={variant.additionalPrice || ""}
                                 onChange={(e) => updateVariant(index, 'additionalPrice', e.target.value || 0)}
                               />
                             </div>
-                            
+
                             <div className="space-y-2">
                               <Label htmlFor={`variant-${index}-stock`}>Stock Quantity</Label>
-                              <Input 
-                                id={`variant-${index}-stock`} 
+                              <Input
+                                id={`variant-${index}-stock`}
                                 type="number"
-                                placeholder="0" 
+                                placeholder="0"
                                 value={variant.stockQuantity || 0}
                                 onChange={(e) => updateVariant(index, 'stockQuantity', e.target.value || 0)}
                               />
                             </div>
-                            
+
                             <div className="space-y-2">
                               <Label htmlFor={`variant-${index}-threshold`}>Low Stock Threshold</Label>
-                              <Input 
-                                id={`variant-${index}-threshold`} 
+                              <Input
+                                id={`variant-${index}-threshold`}
                                 type="number"
                                 min="1"
-                                placeholder="5" 
+                                placeholder="5"
                                 value={variant.threshold || 5}
                                 onChange={(e) => updateVariant(index, 'threshold', parseInt(e.target.value) || 5)}
                               />
@@ -1174,8 +1188,8 @@ export default function NewProductPage() {
                       No variants added yet. Add a variant using the button below.
                     </div>
                   )}
-                  
-                  <Button 
+
+                  <Button
                     type="button"
                     variant="outline"
                     onClick={addVariant}
@@ -1186,7 +1200,7 @@ export default function NewProductPage() {
                   </Button>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Product Specifications</CardTitle>
@@ -1198,41 +1212,41 @@ export default function NewProductPage() {
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="length">Length</Label>
-                      <Input 
-                        id="length" 
+                      <Input
+                        id="length"
                         type="number"
                         step="0.1"
                         value={length}
                         onChange={(e) => setLength(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="width">Width</Label>
-                      <Input 
-                        id="width" 
+                      <Input
+                        id="width"
                         type="number"
                         step="0.1"
                         value={width}
                         onChange={(e) => setWidth(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="height">Height</Label>
-                      <Input 
-                        id="height" 
+                      <Input
+                        id="height"
                         type="number"
                         step="0.1"
                         value={height}
                         onChange={(e) => setHeight(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="weight">Weight</Label>
-                      <Input 
-                        id="weight" 
+                      <Input
+                        id="weight"
                         type="number"
                         step="0.01"
                         value={weight}
@@ -1242,7 +1256,7 @@ export default function NewProductPage() {
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>SEO Settings</CardTitle>
@@ -1257,30 +1271,30 @@ export default function NewProductPage() {
                         Meta Title
                         <FormTooltip content="The meta title appears in search engine results and browser tabs. Keep it under 60 characters for best SEO practices." />
                       </Label>
-                      <Input 
-                        id="metaTitle" 
-                        placeholder="SEO title" 
+                      <Input
+                        id="metaTitle"
+                        placeholder="SEO title"
                         value={metaTitle}
                         onChange={(e) => setMetaTitle(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="metaDescription">Meta Description</Label>
-                      <Textarea 
-                        id="metaDescription" 
+                      <Textarea
+                        id="metaDescription"
                         rows={3}
-                        placeholder="SEO description" 
+                        placeholder="SEO description"
                         value={metaDescription}
                         onChange={(e) => setMetaDescription(e.target.value)}
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="metaKeywords">Meta Keywords</Label>
-                      <Input 
-                        id="metaKeywords" 
-                        placeholder="keyword1, keyword2, keyword3" 
+                      <Input
+                        id="metaKeywords"
+                        placeholder="keyword1, keyword2, keyword3"
                         value={metaKeywords}
                         onChange={(e) => setMetaKeywords(e.target.value)}
                       />
@@ -1289,7 +1303,7 @@ export default function NewProductPage() {
                 </CardContent>
               </Card>
             </div>
-            
+
             <div className="space-y-5">
               <Card>
                 <CardHeader>
@@ -1301,8 +1315,8 @@ export default function NewProductPage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="visibility">Visibility</Label>
-                    <Select 
-                      value={visibility} 
+                    <Select
+                      value={visibility}
                       onValueChange={(value: "PUBLIC" | "PRIVATE" | "HIDDEN") => setVisibility(value)}
                     >
                       <SelectTrigger>
@@ -1315,19 +1329,19 @@ export default function NewProductPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="isActive" 
+                    <Checkbox
+                      id="isActive"
                       checked={isActive}
                       onCheckedChange={(checked) => setIsActive(!!checked)}
                     />
                     <Label htmlFor="isActive">Active Product</Label>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="isFeatured" 
+                    <Checkbox
+                      id="isFeatured"
                       checked={isFeatured}
                       onCheckedChange={(checked) => setIsFeatured(!!checked)}
                     />
@@ -1335,7 +1349,7 @@ export default function NewProductPage() {
                   </div>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Images</CardTitle>
@@ -1359,7 +1373,7 @@ export default function NewProductPage() {
                         else if (url.includes('.gif')) mimetype = 'image/gif';
                         else if (url.includes('.webp')) mimetype = 'image/webp';
                         else if (url.includes('.svg')) mimetype = 'image/svg+xml';
-                        
+
                         return {
                           key: `product-image-${img.position || index}-${img.imageUrl.substring(img.imageUrl.lastIndexOf('/') + 1)}`,
                           url: img.imageUrl,
@@ -1375,7 +1389,7 @@ export default function NewProductPage() {
                         altText: file.originalName || `Product image ${index + 1}`,
                         position: index
                       }));
-                      
+
                       setProductImages(images);
                     }}
                     onSuccess={(files) => {
@@ -1385,11 +1399,11 @@ export default function NewProductPage() {
                         altText: file.originalName || `Product image ${productImages.length + index + 1}`,
                         position: productImages.length + index
                       }));
-                      
+
                       // Add to existing productImages
                       const updatedImages = [...productImages, ...newImages];
                       setProductImages(updatedImages);
-                      
+
                       // Immediate validation
                       setTimeout(() => {
                         const formData = {
@@ -1422,7 +1436,7 @@ export default function NewProductPage() {
                         const sections = determineCompletedSections(formData);
                         setCompletedSections(sections);
                       }, 50);
-                      
+
                       toast.success(`Uploaded ${files.length} image(s) successfully`);
                     }}
                     onError={(error) => {
@@ -1434,7 +1448,7 @@ export default function NewProductPage() {
                   />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Tags</CardTitle>
@@ -1449,8 +1463,8 @@ export default function NewProductPage() {
                     <div className="space-y-2">
                       {tags.map(tag => (
                         <div key={tag.id} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`tag-${tag.id}`} 
+                          <Checkbox
+                            id={`tag-${tag.id}`}
                             checked={selectedTags.includes(tag.id)}
                             onCheckedChange={() => toggleTag(tag.id)}
                           />
@@ -1466,22 +1480,22 @@ export default function NewProductPage() {
             </div>
           </div>
         </div>
-        
+
         {/* Add the specifications form after the variants section */}
-        <ProductSpecificationsForm 
-          productId="new" 
-          categoryId={categoryId} 
+        <ProductSpecificationsForm
+          productId="new"
+          categoryId={categoryId}
           onSpecificationsChange={handleSpecificationsChange}
           specifications={specifications}
         />
       </form>
-      
+
       {/* Add the preview modal */}
-      <ProductPreviewModal 
+      <ProductPreviewModal
         open={isPreviewOpen}
         onOpenChange={(open) => open ? openPreview() : closePreview()}
         product={previewProduct}
       />
     </MainLayout>
   );
-} 
+}

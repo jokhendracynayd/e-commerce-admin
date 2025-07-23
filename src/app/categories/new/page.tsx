@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, FolderPlus, RefreshCw } from "lucide-react";
+import { ArrowLeft, Save, FolderPlus, RefreshCw, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +34,18 @@ export default function NewCategoryPage() {
   const [showInFilters, setShowInFilters] = useState(true);
   const [displayOrder, setDisplayOrder] = useState("0");
   
+  // state additions after existing states
+  const [slugEdited, setSlugEdited] = useState(false);
+  const [metaTitleEdited, setMetaTitleEdited] = useState(false);
+  const [metaDescriptionEdited, setMetaDescriptionEdited] = useState(false);
+
+  // helper generators
+  const generateMetaTitle = (catName: string) => `${catName} | Buy ${catName} Online`;
+  const generateMetaDescription = (catName: string, desc?: string) => {
+    if (desc && desc.trim()) return desc.trim().slice(0,150);
+    return `Discover a wide range of ${catName} at best prices. Shop the latest ${catName} products with fast delivery & secure checkout.`;
+  };
+  
   // Generate slug from name
   const generateSlug = (text: string): string => {
     return text
@@ -53,14 +65,12 @@ export default function NewCategoryPage() {
     
     // Only auto-generate slug if user hasn't manually edited it yet
     // or if the slug is empty
-    if (slug === '' || slug === generateSlug(name)) {
+    if (!slugEdited) {
       setSlug(generateSlug(newName));
     }
     
-    // Auto-generate meta title if it's empty
-    if (metaTitle === '') {
-      setMetaTitle(newName);
-    }
+    if (!metaTitleEdited) setMetaTitle(generateMetaTitle(newName));
+    if (!metaDescriptionEdited) setMetaDescription(generateMetaDescription(newName));
   };
 
   // Handle regenerate slug button click
@@ -208,7 +218,7 @@ export default function NewCategoryPage() {
                           id="slug" 
                           placeholder="enter-slug-here"
                           value={slug}
-                          onChange={(e) => setSlug(e.target.value)}
+                          onChange={(e) => {setSlug(e.target.value); setSlugEdited(true);}}
                         />
                         <Button 
                           type="button" 
@@ -260,7 +270,7 @@ export default function NewCategoryPage() {
                       id="metaTitle" 
                       placeholder="Enter meta title"
                       value={metaTitle}
-                      onChange={(e) => setMetaTitle(e.target.value)}
+                      onChange={(e) => {setMetaTitle(e.target.value); setMetaTitleEdited(true);}}
                     />
                   </div>
                   <div className="space-y-2">
@@ -270,10 +280,20 @@ export default function NewCategoryPage() {
                       rows={3} 
                       placeholder="Enter meta description"
                       value={metaDescription}
-                      onChange={(e) => setMetaDescription(e.target.value)}
+                      onChange={(e) => {setMetaDescription(e.target.value); setMetaDescriptionEdited(true);}}
                     />
                   </div>
                 </CardContent>
+                <div className="px-6 pb-4">
+                  <Button type="button" variant="outline" size="sm" onClick={()=>{
+                    setMetaTitle(generateMetaTitle(name||'Category'));
+                    setMetaDescription(generateMetaDescription(name||'Category', description));
+                    setMetaTitleEdited(false);
+                    setMetaDescriptionEdited(false);
+                  }} className="flex items-center gap-1">
+                    <Wand2 className="h-4 w-4"/> Generate SEO
+                  </Button>
+                </div>
               </Card>
             </div>
 

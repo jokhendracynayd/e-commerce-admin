@@ -50,6 +50,27 @@ export default function CategoriesPage() {
       )
     : [];
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const totalPages = Math.ceil(filteredCategories.length / ITEMS_PER_PAGE) || 1;
+
+  const paginated = filteredCategories.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
+  };
+
+  // Helper to get parent category name
+  const getParentName = (parentId: string | null): string | null => {
+    if (!parentId) return null;
+    const parent = categories.find((c) => c.id === parentId);
+    return parent ? parent.name : null;
+  };
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
@@ -122,7 +143,7 @@ export default function CategoriesPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredCategories.map((category) => (
+                      paginated.map((category) => (
                         <TableRow key={category.id}>
                           <TableCell className="font-medium">
                             <Link href={`/categories/${category.id}/view`} className="flex items-center gap-2 hover:underline">
@@ -138,7 +159,11 @@ export default function CategoriesPage() {
                           </TableCell>
                           <TableCell>
                             {category.parentId ? (
-                              <span className="text-muted-foreground">Has Parent</span>
+                              getParentName(category.parentId) ? (
+                                <span className="text-muted-foreground">{getParentName(category.parentId)}</span>
+                              ) : (
+                                <span className="text-muted-foreground">Parent N/A</span>
+                              )
                             ) : (
                               <Badge variant="outline">Root Category</Badge>
                             )}
@@ -162,6 +187,31 @@ export default function CategoriesPage() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+            {filteredCategories.length > ITEMS_PER_PAGE && (
+              <div className="flex justify-between items-center mt-4">
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
