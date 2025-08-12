@@ -15,7 +15,8 @@ import {
   Users,
   FileText,
   Archive,
-  Tags
+  Tags,
+  Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -74,6 +75,12 @@ const routes = [
     icon: Tag,
     href: "/deals",
     color: "text-rose-500",
+  },
+  {
+    label: "Promo Banners",
+    icon: ImageIcon,
+    href: "/promo-banners",
+    color: "text-fuchsia-500",
   },
   {
     label: "Reviews",

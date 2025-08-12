@@ -115,4 +115,9 @@ export const ENDPOINTS = {
     PRODUCTS: '/analytics/products',
     CUSTOMERS: '/analytics/customers',
   },
+
+  PROMO_BANNERS: {
+    BASE: '/promo-banners',
+    DETAIL: (id: string) => `/promo-banners/${id}`,
+  },
 }; 
