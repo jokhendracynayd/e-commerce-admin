@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { RefreshCw } from "lucide-react";
 
 import { ordersService } from "@/services/ordersService";
+import { useToast } from "@/components/ui/use-toast";
 import { Order as BackendOrder, OrderTimeline } from "@/types/order";
 
 // UI-facing order type (mirrors previous structure to keep UI unchanged)
@@ -118,6 +119,10 @@ export default function OrderEditPage() {
   
   const [order, setOrder] = useState<UIOrder | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<string | undefined>(undefined);
+  const [paymentStatus, setPaymentStatus] = useState<string | undefined>(undefined);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -132,6 +137,9 @@ export default function OrderEditPage() {
           const timelineEvents = timelineRes.success ? timelineRes.data : [];
           const uiOrder = transformOrder(orderRes.data as BackendOrder, timelineEvents);
           setOrder(uiOrder);
+          // initialize editable fields
+          setStatus(orderRes.data.status as unknown as string);
+          setPaymentStatus(orderRes.data.paymentStatus as unknown as string);
         } else {
           console.error("Failed to load order", orderRes.error);
         }
@@ -144,6 +152,38 @@ export default function OrderEditPage() {
     
     fetchOrder();
   }, [orderId]);
+
+  const handleSave = async () => {
+    if (!order) return;
+    try {
+      setSaving(true);
+      const payload: any = {};
+      if (status && status !== order.status) payload.status = status;
+      if (paymentStatus && paymentStatus !== order.payment.status) payload.paymentStatus = paymentStatus;
+
+      if (Object.keys(payload).length === 0) {
+        toast({ title: "No changes", description: "Nothing to update." });
+        return;
+      }
+
+      const res = await ordersService.updateOrder(orderId, payload);
+      if (res.success && res.data) {
+        // Refresh local order state from server response
+        const timelineRes = await ordersService.getOrderTimeline(orderId);
+        const fresh = transformOrder(res.data as BackendOrder, timelineRes.success ? timelineRes.data : []);
+        setOrder(fresh);
+        setStatus(fresh.status);
+        setPaymentStatus(fresh.payment.status);
+        toast({ title: "Order updated", description: "Statuses saved successfully." });
+      } else {
+        toast({ title: "Update failed", description: res.error || "Unable to update order.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update order.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -180,9 +220,9 @@ export default function OrderEditPage() {
             <Link href={`/orders/${orderId}/view`}>
               <Button variant="outline">View Order</Button>
             </Link>
-            <Button>
+            <Button onClick={handleSave} disabled={saving}>
               <Save className="mr-2 h-4 w-4" />
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>
@@ -208,7 +248,7 @@ export default function OrderEditPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
-                    <Select defaultValue={order.status}>
+                    <Select value={status} onValueChange={setStatus}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
@@ -385,7 +425,7 @@ export default function OrderEditPage() {
                 )}
                 <div className="space-y-2">
                   <Label htmlFor="paymentStatus">Payment Status</Label>
-                  <Select defaultValue={order.payment.status}>
+                  <Select value={paymentStatus} onValueChange={setPaymentStatus}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select payment status" />
                     </SelectTrigger>
@@ -416,9 +456,9 @@ export default function OrderEditPage() {
             <Link href="/orders" className="flex items-center">Cancel</Link>
           </Button>
           <Button variant="destructive">Delete Order</Button>
-          <Button>
+          <Button onClick={handleSave} disabled={saving}>
             <Save className="mr-2 h-4 w-4" />
-            Save Changes
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>

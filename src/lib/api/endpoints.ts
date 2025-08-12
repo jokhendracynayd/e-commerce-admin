@@ -79,6 +79,7 @@ export const ENDPOINTS = {
     BASE: '/inventory',
     DETAIL: (id: string) => `/inventory/${id}`,
     LOG: '/inventory/log',
+    LOGS: '/inventory/logs',
   },
   
   UPLOAD: {
@@ -99,6 +100,13 @@ export const ENDPOINTS = {
     BY_CODE: (code: string) => `/coupons/code/${code}`,
     VALIDATE: '/coupons/validate',
     APPLY: '/coupons/apply',
+  },
+
+  REVIEWS: {
+    BASE: '/reviews',
+    DETAIL: (id: string) => `/reviews/${id}`,
+    MY: '/reviews/my-reviews',
+    STATS: '/reviews/stats',
   },
   
   ANALYTICS: {

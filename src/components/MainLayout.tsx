@@ -4,6 +4,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { useUIStore } from "@/store/ui-store";
 import { AuthGuard } from "@/components/AuthGuard";
+import { useEffect, useMemo } from "react";
+import { usePathname } from "next/navigation";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -11,6 +13,59 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const { isSidebarOpen, isCollapsed, toggleSidebar, setSidebarOpen } = useUIStore();
+  const pathname = usePathname();
+
+  const pageTitle = useMemo(() => {
+    const appName = "All Mart Admin";
+    if (!pathname || pathname === "/") return `${appName} | Dashboard`;
+
+    const format = (segment: string) =>
+      segment
+        .replace(/\[.*?\]/g, "")
+        .replace(/-/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    const parts = pathname.split("/").filter(Boolean);
+    // Map known sections for nicer titles
+    const map: Record<string, string> = {
+      dashboard: "Dashboard",
+      brands: "Brands",
+      categories: "Categories",
+      coupons: "Coupons",
+      deals: "Deals",
+      inventory: "Inventory",
+      logs: "Logs",
+      orders: "Orders",
+      products: "Products",
+      reports: "Reports",
+      reviews: "Reviews",
+      settings: "Settings",
+      tags: "Tags",
+      users: "Users",
+      profile: "Profile",
+      auth: "Authentication",
+      new: "New",
+      view: "View",
+      templates: "Templates",
+      subcategories: "Subcategories",
+      variants: "Variants",
+    };
+
+    const readable = parts.map((p) => map[p] || format(p));
+
+    // Prefer first two parts for conciseness, e.g., "Products - New"
+    const primary = readable[0] || "Dashboard";
+    const secondary = readable[1] && readable[1] !== primary ? ` - ${readable[1]}` : "";
+    return `${appName} | ${primary}${secondary}`;
+  }, [pathname]);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.title = pageTitle;
+    }
+  }, [pageTitle]);
 
   return (
     <AuthGuard>

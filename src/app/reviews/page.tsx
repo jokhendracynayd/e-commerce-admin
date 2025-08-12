@@ -1,68 +1,42 @@
+"use client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Check, Star, ThumbsUp, ThumbsDown, AlertOctagon, Archive } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
-
-const reviews = [
-  {
-    id: "rev-1",
-    customer: "John Doe",
-    product: "Premium Headphones",
-    rating: 5,
-    comment: "Excellent sound quality and comfortable to wear for long periods. Battery life is impressive too.",
-    date: "2023-08-15",
-    status: "Published",
-    reported: false,
-    helpfulCount: 12,
-  },
-  {
-    id: "rev-2",
-    customer: "Emma Smith",
-    product: "Smartphone X",
-    rating: 2,
-    comment: "Poor battery life and overheats easily. Not worth the high price tag.",
-    date: "2023-08-14",
-    status: "Pending",
-    reported: true,
-    helpfulCount: 3,
-  },
-  {
-    id: "rev-3",
-    customer: "Michael Johnson",
-    product: "Ergonomic Chair",
-    rating: 4,
-    comment: "Very comfortable and easy to adjust. Taking off one star because assembly was a bit tricky.",
-    date: "2023-08-13",
-    status: "Published",
-    reported: false,
-    helpfulCount: 8,
-  },
-  {
-    id: "rev-4",
-    customer: "Sophia Williams",
-    product: "Designer Backpack",
-    rating: 5,
-    comment: "Beautiful design and very spacious. Love all the compartments!",
-    date: "2023-08-12",
-    status: "Published",
-    reported: false,
-    helpfulCount: 6,
-  },
-  {
-    id: "rev-5",
-    customer: "Robert Brown",
-    product: "Fitness Watch",
-    rating: 1,
-    comment: "Stopped working after 2 weeks. Terrible quality control.",
-    date: "2023-08-11",
-    status: "Pending",
-    reported: true,
-    helpfulCount: 15,
-  },
-];
+import { useEffect, useMemo, useState } from "react";
+import reviewsService from "@/services/reviewsService";
+import { Review } from "@/types/review";
 
 export default function ReviewsPage() {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await reviewsService.getReviews({ page, limit });
+        if (res.success) {
+          setReviews(res.data.reviews);
+          setTotal(res.data.total);
+        } else {
+          setError(res.error || 'Failed to load reviews');
+        }
+      } catch (e: any) {
+        setError(e.message || 'Failed to load reviews');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [page, limit]);
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
@@ -84,7 +58,7 @@ export default function ReviewsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {reviews.length}
+                {loading ? '—' : total}
               </div>
             </CardContent>
           </Card>
@@ -96,7 +70,7 @@ export default function ReviewsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {(reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)}
+                {loading || reviews.length === 0 ? '—' : (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)}
               </div>
             </CardContent>
           </Card>
@@ -108,7 +82,8 @@ export default function ReviewsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {reviews.filter(review => review.status === "Pending").length}
+                {/* Backend does not expose status field; placeholder */}
+                —
               </div>
             </CardContent>
           </Card>
@@ -120,7 +95,7 @@ export default function ReviewsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {reviews.filter(review => review.reported).length}
+                —
               </div>
             </CardContent>
           </Card>
@@ -142,15 +117,27 @@ export default function ReviewsPage() {
                   <TableHead>Rating</TableHead>
                   <TableHead>Comment</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Verified</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {reviews.map((review) => (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={7}>Loading…</TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={7}>{error}</TableCell>
+                  </TableRow>
+                ) : reviews.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7}>No reviews found</TableCell>
+                  </TableRow>
+                ) : reviews.map((review) => (
                   <TableRow key={review.id}>
-                    <TableCell className="font-medium">{review.customer}</TableCell>
-                    <TableCell>{review.product}</TableCell>
+                    <TableCell className="font-medium">{review.user ? `${review.user.firstName || ''} ${review.user.lastName || ''}`.trim() || review.user.email : 'Guest'}</TableCell>
+                    <TableCell>{review.product?.title || '—'}</TableCell>
                     <TableCell>
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
@@ -161,30 +148,15 @@ export default function ReviewsPage() {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">{review.comment}</TableCell>
-                    <TableCell>{review.date}</TableCell>
+                    <TableCell className="max-w-xs truncate">{review.comment || '—'}</TableCell>
+                    <TableCell>{new Date(review.createdAt).toISOString().slice(0,10)}</TableCell>
                     <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        review.status === "Published" 
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" 
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                      }`}>
-                        {review.status}
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${review.isVerifiedPurchase ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                        {review.isVerifiedPurchase ? 'Verified' : 'Unverified'}
                       </span>
-                      {review.reported && (
-                        <span className="ml-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
-                          Reported
-                        </span>
-                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {review.status === "Pending" && (
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                            <Check className="h-4 w-4" />
-                            <span className="sr-only">Approve</span>
-                          </Button>
-                        )}
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                           <Archive className="h-4 w-4" />
                           <span className="sr-only">Archive</span>
@@ -209,7 +181,7 @@ export default function ReviewsPage() {
             <div className="space-y-2">
               {[5, 4, 3, 2, 1].map((rating) => {
                 const count = reviews.filter(review => review.rating === rating).length;
-                const percentage = (count / reviews.length) * 100;
+                const percentage = reviews.length ? (count / reviews.length) * 100 : 0;
                 
                 return (
                   <div key={rating} className="flex items-center">

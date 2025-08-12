@@ -10,6 +10,22 @@ import { MainLayout } from "@/components/MainLayout";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import Link from "next/link";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Import from our types and services
 import { InventoryItem, InventoryStats, InventoryStatus } from "@/types/inventory";
@@ -30,6 +46,10 @@ export default function InventoryPage() {
   });
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
   const { toast } = useToast();
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Fetch inventory data
   const fetchInventory = async () => {
@@ -77,7 +97,36 @@ export default function InventoryPage() {
     } else {
       setFilteredInventory(inventory);
     }
+    setPage(1);
   }, [searchQuery, inventory]);
+
+  // Keep page within bounds when filtered list changes
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(filteredInventory.length / pageSize));
+    if (page > totalPages) setPage(totalPages);
+  }, [filteredInventory, pageSize, page]);
+
+  const totalItems = filteredInventory.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const currentItems = filteredInventory.slice(startIndex, endIndex);
+
+  const getPageNumbers = () => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i += 1) pages.push(i);
+    } else {
+      const showLeft = Math.max(2, page - 1);
+      const showRight = Math.min(totalPages - 1, page + 1);
+      pages.push(1);
+      if (showLeft > 2) pages.push('ellipsis');
+      for (let p = showLeft; p <= showRight; p += 1) pages.push(p);
+      if (showRight < totalPages - 1) pages.push('ellipsis');
+      pages.push(totalPages);
+    }
+    return pages;
+  };
 
   // Get inventory status
   const getInventoryStatus = (item: InventoryItem): InventoryStatus => {
@@ -248,7 +297,7 @@ export default function InventoryPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInventory.map((item) => {
+                    {currentItems.map((item) => {
                       const status = getInventoryStatus(item);
                       const badgeVariant = getStatusBadgeVariant(status);
                       
@@ -281,6 +330,76 @@ export default function InventoryPage() {
                     })}
                   </TableBody>
                 </Table>
+                <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{totalItems === 0 ? 0 : startIndex + 1}</span>–
+                    <span className="font-medium">{endIndex}</span> of <span className="font-medium">{totalItems}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Rows per page</span>
+                      <Select
+                        value={String(pageSize)}
+                        onValueChange={(val) => {
+                          const size = parseInt(val, 10);
+                          setPageSize(size);
+                          setPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[90px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[10, 20, 50, 100].map((n) => (
+                            <SelectItem key={n} value={String(n)}>
+                              {n}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPage((p) => Math.max(1, p - 1));
+                            }}
+                          />
+                        </PaginationItem>
+                        {getPageNumbers().map((p, idx) => (
+                          <PaginationItem key={`${p}-${idx}`}>
+                            {p === 'ellipsis' ? (
+                              <PaginationEllipsis />
+                            ) : (
+                              <PaginationLink
+                                href="#"
+                                isActive={p === page}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setPage(p as number);
+                                }}
+                              >
+                                {p}
+                              </PaginationLink>
+                            )}
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPage((p) => Math.min(totalPages, p + 1));
+                            }}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "E-Commerce Admin Portal",
-  description: "Enterprise-level e-commerce admin dashboard",
+  title: "All Mart Admin Portal",
+  description: "Enterprise-level admin dashboard",
 };
 
 // Split the layout into server and client components

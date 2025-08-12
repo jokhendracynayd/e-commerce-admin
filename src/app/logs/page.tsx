@@ -1,103 +1,37 @@
+"use client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Clock, Download, Filter, RefreshCcw, Search } from "lucide-react";
 import { MainLayout } from "@/components/MainLayout";
-
-const logs = [
-  {
-    id: "log-001",
-    timestamp: "2023-08-15 14:32:45",
-    user: "admin@example.com",
-    action: "User Login",
-    ip: "192.168.1.1",
-    status: "Success",
-    details: "Successfully authenticated",
-  },
-  {
-    id: "log-002",
-    timestamp: "2023-08-15 14:35:12",
-    user: "admin@example.com",
-    action: "Product Update",
-    ip: "192.168.1.1",
-    status: "Success",
-    details: "Updated product ID: PRD-5312",
-  },
-  {
-    id: "log-003",
-    timestamp: "2023-08-15 14:40:23",
-    user: "marketing@example.com",
-    action: "Promotion Created",
-    ip: "192.168.1.5",
-    status: "Success",
-    details: "Created promotion: Summer Sale",
-  },
-  {
-    id: "log-004",
-    timestamp: "2023-08-15 15:03:17",
-    user: "unknown",
-    action: "Failed Login Attempt",
-    ip: "203.0.113.45",
-    status: "Failed",
-    details: "Invalid credentials",
-  },
-  {
-    id: "log-005",
-    timestamp: "2023-08-15 15:12:54",
-    user: "support@example.com",
-    action: "Order Status Change",
-    ip: "192.168.1.8",
-    status: "Success",
-    details: "Order #5314 marked as Shipped",
-  },
-  {
-    id: "log-006",
-    timestamp: "2023-08-15 15:30:01",
-    user: "system",
-    action: "Database Backup",
-    ip: "localhost",
-    status: "Success",
-    details: "Automated daily backup completed",
-  },
-  {
-    id: "log-007",
-    timestamp: "2023-08-15 15:45:12",
-    user: "admin@example.com",
-    action: "User Permission Update",
-    ip: "192.168.1.1",
-    status: "Success",
-    details: "Updated permissions for marketing@example.com",
-  },
-  {
-    id: "log-008",
-    timestamp: "2023-08-15 15:52:38",
-    user: "system",
-    action: "API Rate Limit Exceeded",
-    ip: "203.0.113.100",
-    status: "Warning",
-    details: "Rate limit reached for inventory API",
-  },
-  {
-    id: "log-009",
-    timestamp: "2023-08-15 16:03:45",
-    user: "finance@example.com",
-    action: "Invoice Generated",
-    ip: "192.168.1.12",
-    status: "Success",
-    details: "Generated invoice #INV-2023-415",
-  },
-  {
-    id: "log-010",
-    timestamp: "2023-08-15 16:14:22",
-    user: "system",
-    action: "Low Stock Alert",
-    ip: "localhost",
-    status: "Warning",
-    details: "Product ID: PRD-3214 below threshold",
-  },
-];
+import { useEffect, useMemo, useState } from "react";
+import { inventoryService } from "@/services/inventoryService";
+import { InventoryLog } from "@/types/inventory";
 
 export default function LogsPage() {
+  const [logs, setLogs] = useState<InventoryLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await inventoryService.getInventoryLogs();
+        if (res.success) setLogs(res.data);
+        else setError(res.error || 'Failed to load logs');
+      } catch (e: any) {
+        setError(e.message || 'Failed to load logs');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   return (
     <MainLayout>
       <div className="flex flex-col gap-5">
@@ -193,26 +127,34 @@ export default function LogsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-mono text-xs">{log.timestamp}</TableCell>
-                    <TableCell className="font-medium">{log.user}</TableCell>
-                    <TableCell>{log.action}</TableCell>
-                    <TableCell className="font-mono text-xs">{log.ip}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        log.status === "Success" 
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" 
-                          : log.status === "Warning"
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
-                          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                      }`}>
-                        {log.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{log.details}</TableCell>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6}>Loading…</TableCell>
                   </TableRow>
-                ))}
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={6}>{error}</TableCell>
+                  </TableRow>
+                ) : logs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6}>No logs found</TableCell>
+                  </TableRow>
+                ) : (
+                  logs.slice(0, limit).map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-mono text-xs">{new Date(log.createdAt).toISOString().replace('T',' ').slice(0,19)}</TableCell>
+                      <TableCell className="font-medium">{log.product?.title || '—'}</TableCell>
+                      <TableCell>{log.changeType}</TableCell>
+                      <TableCell className="font-mono text-xs">{log.product?.sku || log.variant?.sku || '—'}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-muted">
+                          {log.quantityChanged > 0 ? `+${log.quantityChanged}` : log.quantityChanged}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{log.note || '-'}</TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
             <div className="flex items-center justify-between mt-6">
