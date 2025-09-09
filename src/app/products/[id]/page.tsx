@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Switch } from "@/components/ui/switch";
-import { getCurrencySymbol } from "@/lib/utils";
+import { getCurrencySymbol, getCurrencyOptions } from "@/lib/utils";
 import { ProductSpecificationsForm } from "@/components/ProductSpecificationsForm";
 import { ProductSpecificationsDisplay } from "@/components/ProductSpecificationsDisplay";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -514,10 +514,11 @@ export default function ProductEditPage() {
                             <SelectValue placeholder="USD" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="USD">USD ($)</SelectItem>
-                            <SelectItem value="INR">INR (₹)</SelectItem>
-                            <SelectItem value="EUR">EUR (€)</SelectItem>
-                            <SelectItem value="GBP">GBP (£)</SelectItem>
+                            {getCurrencyOptions().map((curr) => (
+                              <SelectItem key={curr.value} value={curr.value}>
+                                {curr.label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, GripVertical, Plus, Trash, Upload, Save, X, Eye } from "lucide-react";
+import { ArrowLeft, GripVertical, Plus, Trash, Upload, Save, X, Eye, Search, Tag } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -33,7 +33,7 @@ import {
 import { toast } from "sonner";
 import { FormTooltip } from "@/components/ui/form-tooltip";
 import dynamic from "next/dynamic";
-import { getSafeImageSrc, truncateText } from "@/lib/utils";
+import { getSafeImageSrc, truncateText, getCurrencyOptions } from "@/lib/utils";
 import { useProductPreview, PreviewProduct } from "@/hooks/useProductPreview";
 import { ProductSpecificationsForm } from "@/components/ProductSpecificationsForm";
 import { CreateProductSpecificationDto } from "@/lib/api/specifications-api";
@@ -99,6 +99,12 @@ export default function NewProductPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [currency, setCurrency] = useState<string>("INR");
   const [variants, setVariants] = useState<CreateProductVariantDto[]>([]);
+  
+  // Tag search and creation state
+  const [tagSearchQuery, setTagSearchQuery] = useState<string>("");
+  const [showCreateTagForm, setShowCreateTagForm] = useState<boolean>(false);
+  const [newTagName, setNewTagName] = useState<string>("");
+  const [creatingTag, setCreatingTag] = useState<boolean>(false);
 
 
   // Form validation and submission state
@@ -124,15 +130,6 @@ export default function NewProductPage() {
   const [lowStockThreshold, setLowStockThreshold] = useState<string>("5");
 
   // Available currencies
-  const currencies = [
-    { code: "INR", name: "Indian Rupee (₹)" },
-    { code: "USD", name: "US Dollar ($)" },
-    { code: "EUR", name: "Euro (€)" },
-    { code: "GBP", name: "British Pound (£)" },
-    { code: "JPY", name: "Japanese Yen (¥)" },
-    { code: "CAD", name: "Canadian Dollar (C$)" },
-    { code: "AUD", name: "Australian Dollar (A$)" }
-  ];
 
   // Add product preview functionality
   const {
@@ -727,6 +724,43 @@ export default function NewProductPage() {
     );
   };
 
+  // Filter tags based on search query
+  const filteredTags = useMemo(() => {
+    if (!tagSearchQuery.trim()) return tags;
+    return tags.filter(tag => 
+      tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
+    );
+  }, [tags, tagSearchQuery]);
+
+  // Create new tag function
+  const createNewTag = async () => {
+    if (!newTagName.trim()) return;
+    
+    setCreatingTag(true);
+    try {
+      // You'll need to implement this API call in your tags-api.ts
+      const newTag = await tagsApi.createTag({ name: newTagName.trim() });
+      
+      // Add the new tag to the tags list
+      setTags(prev => [...prev, newTag]);
+      
+      // Automatically select the new tag
+      setSelectedTags(prev => [...prev, newTag.id]);
+      
+      // Reset form
+      setNewTagName("");
+      setShowCreateTagForm(false);
+      setTagSearchQuery("");
+      
+      toast.success("Tag created successfully");
+    } catch (error) {
+      console.error("Error creating tag:", error);
+      toast.error("Failed to create tag");
+    } finally {
+      setCreatingTag(false);
+    }
+  };
+
   // Build a preview-ready product object from form data
   const previewProduct: PreviewProduct = {
     title: title || "New Product",
@@ -982,9 +1016,9 @@ export default function NewProductPage() {
                           <SelectValue placeholder="Select currency" />
                         </SelectTrigger>
                         <SelectContent>
-                          {currencies.map((curr) => (
-                            <SelectItem key={curr.code} value={curr.code}>
-                              {curr.name}
+                          {getCurrencyOptions().map((curr) => (
+                            <SelectItem key={curr.value} value={curr.value}>
+                              {curr.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1451,30 +1485,151 @@ export default function NewProductPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Tags</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Tag className="h-5 w-5" />
+                    Tags
+                  </CardTitle>
                   <CardDescription>
                     Product tags for better discoverability
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {loadingTags ? (
-                    <p className="text-sm text-muted-foreground">Loading tags...</p>
-                  ) : tags.length > 0 ? (
-                    <div className="space-y-2">
-                      {tags.map(tag => (
-                        <div key={tag.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`tag-${tag.id}`}
-                            checked={selectedTags.includes(tag.id)}
-                            onCheckedChange={() => toggleTag(tag.id)}
-                          />
-                          <Label htmlFor={`tag-${tag.id}`}>{tag.name}</Label>
-                        </div>
-                      ))}
+                  {/* Search and Create Tag Section */}
+                  <div className="space-y-3">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search tags..."
+                        value={tagSearchQuery}
+                        onChange={(e) => setTagSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No tags available</p>
+
+                    {/* Create New Tag Button */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCreateTagForm(!showCreateTagForm)}
+                      className="w-full"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create New Tag
+                    </Button>
+
+                    {/* Create Tag Form */}
+                    {showCreateTagForm && (
+                      <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+                        <Label htmlFor="newTagName">New Tag Name</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="newTagName"
+                            placeholder="Enter tag name"
+                            value={newTagName}
+                            onChange={(e) => setNewTagName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                createNewTag();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={createNewTag}
+                            disabled={!newTagName.trim() || creatingTag}
+                          >
+                            {creatingTag ? "Creating..." : "Create"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setShowCreateTagForm(false);
+                              setNewTagName("");
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Tags Display */}
+                  {selectedTags.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Selected Tags ({selectedTags.length})</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTags.map(tagId => {
+                          const tag = tags.find(t => t.id === tagId);
+                          return tag ? (
+                            <div
+                              key={tagId}
+                              className="flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground rounded-md text-sm"
+                            >
+                              <span>{tag.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleTag(tagId)}
+                                className="hover:bg-primary-foreground/20 rounded-full p-0.5"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Available Tags List */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Available Tags ({filteredTags.length})
+                    </Label>
+                    
+                    {loadingTags ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="text-sm text-muted-foreground">Loading tags...</div>
+                      </div>
+                    ) : filteredTags.length > 0 ? (
+                      <div className="max-h-110 overflow-y-auto border rounded-md p-2 space-y-1">
+                        {filteredTags.map(tag => (
+                          <div
+                            key={tag.id}
+                            className={`flex items-center space-x-2 p-2 rounded-md hover:bg-muted/50 transition-colors ${
+                              selectedTags.includes(tag.id) ? 'bg-muted' : ''
+                            }`}
+                          >
+                            <Checkbox
+                              id={`tag-${tag.id}`}
+                              checked={selectedTags.includes(tag.id)}
+                              onCheckedChange={() => toggleTag(tag.id)}
+                            />
+                            <Label
+                              htmlFor={`tag-${tag.id}`}
+                              className="flex-1 cursor-pointer text-sm"
+                            >
+                              {tag.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    ) : tagSearchQuery ? (
+                      <div className="text-center py-8 text-sm text-muted-foreground">
+                        No tags found matching "{tagSearchQuery}"
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-sm text-muted-foreground">
+                        No tags available. Create your first tag above.
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
