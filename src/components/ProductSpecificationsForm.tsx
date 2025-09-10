@@ -256,7 +256,7 @@ export function ProductSpecificationsForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Technical Specifications</CardTitle>
+        <CardTitle>Specifications</CardTitle>
         <CardDescription>
           Add detailed technical specifications for this product
         </CardDescription>

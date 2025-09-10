@@ -59,8 +59,8 @@ export interface CreateProductSpecificationDto {
 }
 
 export interface GroupedProductSpecificationsDto {
-  groupName: string;
-  specifications: ProductSpecification[];
+  title: string;
+  specs: ProductSpecification[];
 }
 
 export const specificationsApi = {

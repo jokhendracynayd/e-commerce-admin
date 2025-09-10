@@ -819,7 +819,7 @@ export default function ProductEditPage() {
         <div className="mt-8">
           <Tabs defaultValue="view" className="w-full">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Technical Specifications</h2>
+              <h2 className="text-2xl font-bold">Specifications</h2>
               <TabsList>
                 <TabsTrigger value="view">View</TabsTrigger>
                 <TabsTrigger value="edit">Edit</TabsTrigger>

@@ -24,7 +24,6 @@ export function ProductSpecificationsDisplay({ productId }: ProductSpecification
       setError(null);
       
       const response = await specificationsApi.getGroupedProductSpecifications(productId);
-      
       // Check if the response is an object with a data property
       if (response && typeof response === 'object' && 'data' in response) {
         const specsData = response.data;
@@ -96,7 +95,7 @@ export function ProductSpecificationsDisplay({ productId }: ProductSpecification
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Technical Specifications</CardTitle>
+          <CardTitle>Specifications</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground">No specifications available for this product.</p>
@@ -107,26 +106,20 @@ export function ProductSpecificationsDisplay({ productId }: ProductSpecification
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Technical Specifications</CardTitle>
-        <CardDescription>
-          Detailed technical specifications for this product
-        </CardDescription>
-      </CardHeader>
       <CardContent className="space-y-6">
-        {specifications.map((group) => (
-          <div key={group.groupName} className="space-y-3">
-            <h3 className="text-lg font-medium">{group.groupName}</h3>
+        {specifications.map((group, groupIndex) => (
+          <div key={`group-${groupIndex}-${group.title}`} className="space-y-3">
+            <h3 className="text-lg font-medium">{group.title}</h3>
             <div className="border rounded-md divide-y">
-              {Array.isArray(group.specifications) ? (
-                group.specifications.map((spec) => (
-                  <div key={spec.id} className="grid grid-cols-3 gap-4 p-3">
+              {Array.isArray(group.specs) ? (
+                group.specs.map((spec, specIndex) => (
+                  <div key={`spec-${groupIndex}-${specIndex}-${spec.id || spec.specKey}`} className="grid grid-cols-3 gap-4 p-3">
                     <div className="font-medium text-muted-foreground">{spec.specKey}</div>
                     <div className="col-span-2">{spec.specValue}</div>
                   </div>
                 ))
               ) : (
-                <div className="p-3 text-muted-foreground">No specifications in this group</div>
+                <div key={`no-specs-${groupIndex}`} className="p-3 text-muted-foreground">No specifications in this group</div>
               )}
             </div>
           </div>
