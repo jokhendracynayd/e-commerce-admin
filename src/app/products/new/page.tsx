@@ -332,6 +332,7 @@ export default function NewProductPage() {
     if (!price || isNaN(Number(price)) || Number(price) <= 0) {
       newErrors.price = "Valid price is required";
     }
+    if (!categoryId.trim()) newErrors.categoryId = "Category is required";
 
     // Validate variants
     variants.forEach((variant, index) => {
@@ -938,17 +939,16 @@ export default function NewProductPage() {
                     <div className="space-y-2">
 
                       <div className="flex items-center justify-between mb-2">
-                        <Label>
-                          Category
+                        <Label className="flex items-center">
+                          Category*
                           <FormTooltip content="Categories help organize your products and make them easier to find. Select the most relevant category for this product." />
-
                         </Label>
                         <Link href="/categories/new" className="text-sm text-blue-600 hover:text-blue-800">
                           + Create New Category
                         </Link>
                       </div>
                       <Select value={categoryId} onValueChange={setCategoryId}>
-                        <SelectTrigger>
+                        <SelectTrigger className={errors.categoryId ? "border-destructive" : ""}>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
@@ -963,6 +963,9 @@ export default function NewProductPage() {
                           )}
                         </SelectContent>
                       </Select>
+                      {errors.categoryId && (
+                        <p className="text-sm text-destructive">{errors.categoryId}</p>
+                      )}
                     </div>
 
                     {categoryId && (
