@@ -322,48 +322,115 @@ export default function NewProductPage() {
     }));
   }, [productImages]);
 
-  // Update the form validation function to be memoized
+  // Update the form validation function to be memoized with better error messages
   const validateForm = useCallback((): boolean => {
     const newErrors: { [key: string]: string } = {};
 
-    // Validate required fields
-    if (!title.trim()) newErrors.title = "Product title is required";
-    if (!sku.trim()) newErrors.sku = "SKU is required";
-    if (!price || isNaN(Number(price)) || Number(price) <= 0) {
-      newErrors.price = "Valid price is required";
+    // Validate required fields with user-friendly messages
+    if (!title.trim()) {
+      newErrors.title = "Please enter a product title. This helps customers identify your product.";
+    } else if (title.trim().length < 3) {
+      newErrors.title = "Product title must be at least 3 characters long.";
+    } else if (title.trim().length > 100) {
+      newErrors.title = "Product title cannot exceed 100 characters.";
     }
-    if (!categoryId.trim()) newErrors.categoryId = "Category is required";
 
-    // Validate variants
+    if (!sku.trim()) {
+      newErrors.sku = "Please enter a SKU (Stock Keeping Unit). This unique code helps track your inventory.";
+    } else if (sku.trim().length < 3) {
+      newErrors.sku = "SKU must be at least 3 characters long.";
+    } else if (sku.trim().length > 50) {
+      newErrors.sku = "SKU cannot exceed 50 characters.";
+    }
+
+    if (!price || price.trim() === "") {
+      newErrors.price = "Please enter a price for your product.";
+    } else if (isNaN(Number(price))) {
+      newErrors.price = "Please enter a valid price (numbers only).";
+    } else if (Number(price) <= 0) {
+      newErrors.price = "Price must be greater than 0.";
+    } else if (Number(price) > 999999) {
+      newErrors.price = "Price cannot exceed ₹9,99,999.";
+    }
+
+    if (!categoryId.trim()) {
+      newErrors.categoryId = "Please select a category. This helps customers find your product.";
+    }
+
+    // Validate discount price if provided
+    if (discountPrice && discountPrice.trim() !== "") {
+      if (isNaN(Number(discountPrice))) {
+        newErrors.discountPrice = "Please enter a valid discount price (numbers only).";
+      } else if (Number(discountPrice) <= 0) {
+        newErrors.discountPrice = "Discount price must be greater than 0.";
+      } else if (Number(discountPrice) >= Number(price)) {
+        newErrors.discountPrice = "Discount price must be less than the regular price.";
+      }
+    }
+
+    // Validate stock quantity
+    if (stockQuantity && stockQuantity.trim() !== "") {
+      if (isNaN(Number(stockQuantity))) {
+        newErrors.stockQuantity = "Please enter a valid stock quantity (numbers only).";
+      } else if (Number(stockQuantity) < 0) {
+        newErrors.stockQuantity = "Stock quantity cannot be negative.";
+      } else if (Number(stockQuantity) > 999999) {
+        newErrors.stockQuantity = "Stock quantity cannot exceed 999,999.";
+      }
+    }
+
+    // Validate variants with detailed messages
     variants.forEach((variant, index) => {
-      if (!variant.variantName) {
-        newErrors[`variant_${index}_name`] = "Variant name is required";
+      if (!variant.variantName || !variant.variantName.trim()) {
+        newErrors[`variant_${index}_name`] = `Please enter a name for variant ${index + 1} (e.g., "Red", "Large", "XL").`;
+      } else if (variant.variantName.trim().length < 1) {
+        newErrors[`variant_${index}_name`] = `Variant ${index + 1} name cannot be empty.`;
+      } else if (variant.variantName.trim().length > 50) {
+        newErrors[`variant_${index}_name`] = `Variant ${index + 1} name cannot exceed 50 characters.`;
       }
-      if (!variant.sku) {
-        newErrors[`variant_${index}_sku`] = "Variant SKU is required";
+
+      if (!variant.sku || !variant.sku.trim()) {
+        newErrors[`variant_${index}_sku`] = `Please enter a SKU for variant ${index + 1}.`;
+      } else if (variant.sku.trim().length < 3) {
+        newErrors[`variant_${index}_sku`] = `Variant ${index + 1} SKU must be at least 3 characters long.`;
+      } else if (variant.sku.trim().length > 50) {
+        newErrors[`variant_${index}_sku`] = `Variant ${index + 1} SKU cannot exceed 50 characters.`;
       }
+
       if (variant.price <= 0) {
-        newErrors[`variant_${index}_price`] = "Variant price must be greater than 0";
+        newErrors[`variant_${index}_price`] = `Variant ${index + 1} price must be greater than 0.`;
+      } else if (variant.price > 999999) {
+        newErrors[`variant_${index}_price`] = `Variant ${index + 1} price cannot exceed ₹9,99,999.`;
+      }
+
+      if (variant.stockQuantity < 0) {
+        newErrors[`variant_${index}_stock`] = `Variant ${index + 1} stock quantity cannot be negative.`;
+      } else if (variant.stockQuantity > 999999) {
+        newErrors[`variant_${index}_stock`] = `Variant ${index + 1} stock quantity cannot exceed 999,999.`;
       }
     });
 
-    // Validate image URLs
+    // Validate image URLs with helpful messages
     productImages.forEach((image, index) => {
-      if (!image.imageUrl) {
-        newErrors[`image_${index}_url`] = "Image URL is required";
+      if (!image.imageUrl || !image.imageUrl.trim()) {
+        newErrors[`image_${index}_url`] = `Please provide a URL for image ${index + 1}.`;
       } else {
         // Check if URL is valid
         try {
-          new URL(image.imageUrl);
+          const url = new URL(image.imageUrl);
+          // Check if it's a valid image URL
+          if (!url.protocol.match(/^https?:$/)) {
+            newErrors[`image_${index}_url`] = `Image ${index + 1} URL must start with http:// or https://`;
+          }
         } catch (e) {
-          newErrors[`image_${index}_url`] = "Image URL is not valid";
+          newErrors[`image_${index}_url`] = `Image ${index + 1} URL is not valid. Please check the format.`;
         }
       }
     });
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [title, sku, price, variants, productImages]);
+  }, [title, sku, price, discountPrice, stockQuantity, variants, productImages, categoryId]);
 
 
 
@@ -588,6 +655,93 @@ export default function NewProductPage() {
   const handleSpecificationsChange = (newSpecs: CreateProductSpecificationDto[]) => {
     setSpecifications(newSpecs);
   };
+
+  // Real-time validation for individual fields
+  const validateField = useCallback((fieldName: string, value: any) => {
+    const newErrors = { ...errors };
+    
+    switch (fieldName) {
+      case 'title':
+        if (!value.trim()) {
+          newErrors.title = "Please enter a product title. This helps customers identify your product.";
+        } else if (value.trim().length < 3) {
+          newErrors.title = "Product title must be at least 3 characters long.";
+        } else if (value.trim().length > 100) {
+          newErrors.title = "Product title cannot exceed 100 characters.";
+        } else {
+          delete newErrors.title;
+        }
+        break;
+        
+      case 'sku':
+        if (!value.trim()) {
+          newErrors.sku = "Please enter a SKU (Stock Keeping Unit). This unique code helps track your inventory.";
+        } else if (value.trim().length < 3) {
+          newErrors.sku = "SKU must be at least 3 characters long.";
+        } else if (value.trim().length > 50) {
+          newErrors.sku = "SKU cannot exceed 50 characters.";
+        } else {
+          delete newErrors.sku;
+        }
+        break;
+        
+      case 'price':
+        if (!value || value.trim() === "") {
+          newErrors.price = "Please enter a price for your product.";
+        } else if (isNaN(Number(value))) {
+          newErrors.price = "Please enter a valid price (numbers only).";
+        } else if (Number(value) <= 0) {
+          newErrors.price = "Price must be greater than 0.";
+        } else if (Number(value) > 999999) {
+          newErrors.price = "Price cannot exceed ₹9,99,999.";
+        } else {
+          delete newErrors.price;
+        }
+        break;
+        
+      case 'categoryId':
+        if (!value.trim()) {
+          newErrors.categoryId = "Please select a category. This helps customers find your product.";
+        } else {
+          delete newErrors.categoryId;
+        }
+        break;
+        
+      case 'discountPrice':
+        if (value && value.trim() !== "") {
+          if (isNaN(Number(value))) {
+            newErrors.discountPrice = "Please enter a valid discount price (numbers only).";
+          } else if (Number(value) <= 0) {
+            newErrors.discountPrice = "Discount price must be greater than 0.";
+          } else if (Number(value) >= Number(price)) {
+            newErrors.discountPrice = "Discount price must be less than the regular price.";
+          } else {
+            delete newErrors.discountPrice;
+          }
+        } else {
+          delete newErrors.discountPrice;
+        }
+        break;
+        
+      case 'stockQuantity':
+        if (value && value.trim() !== "") {
+          if (isNaN(Number(value))) {
+            newErrors.stockQuantity = "Please enter a valid stock quantity (numbers only).";
+          } else if (Number(value) < 0) {
+            newErrors.stockQuantity = "Stock quantity cannot be negative.";
+          } else if (Number(value) > 999999) {
+            newErrors.stockQuantity = "Stock quantity cannot exceed 999,999.";
+          } else {
+            delete newErrors.stockQuantity;
+          }
+        } else {
+          delete newErrors.stockQuantity;
+        }
+        break;
+    }
+    
+    setErrors(newErrors);
+  }, [errors, price]);
 
   // Update the handleSubmit function to include specifications
   const handleSubmit = async (e: React.FormEvent) => {
@@ -847,6 +1001,24 @@ export default function NewProductPage() {
             </div>
           )}
 
+          {/* Validation Errors Summary */}
+          {Object.keys(errors).length > 0 && (
+            <div className="bg-destructive/10 border border-destructive text-destructive p-4 rounded-md">
+              <div className="flex items-center gap-2 mb-2">
+                <X className="h-4 w-4" />
+                <h3 className="font-semibold">Please fix the following issues:</h3>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {Object.entries(errors).map(([field, message]) => (
+                  <li key={field} className="flex items-start gap-2">
+                    <span className="text-destructive">•</span>
+                    <span>{message}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
             <div className="md:col-span-2 space-y-5">
               <Card>
@@ -867,7 +1039,10 @@ export default function NewProductPage() {
                         id="title"
                         placeholder="Enter product title"
                         value={title}
-                        onChange={(e) => setTitle(e.target.value)}
+                        onChange={(e) => {
+                          setTitle(e.target.value);
+                          validateField('title', e.target.value);
+                        }}
                         className={errors.title ? "border-destructive" : ""}
                       />
                       {errors.title && (
@@ -895,7 +1070,10 @@ export default function NewProductPage() {
                         id="sku"
                         placeholder="Enter SKU code"
                         value={sku}
-                        onChange={(e) => setSku(e.target.value)}
+                        onChange={(e) => {
+                          setSku(e.target.value);
+                          validateField('sku', e.target.value);
+                        }}
                         className={errors.sku ? "border-destructive" : ""}
                       />
                       {errors.sku && (
@@ -947,7 +1125,10 @@ export default function NewProductPage() {
                           + Create New Category
                         </Link>
                       </div>
-                      <Select value={categoryId} onValueChange={setCategoryId}>
+                      <Select value={categoryId} onValueChange={(value) => {
+                        setCategoryId(value);
+                        validateField('categoryId', value);
+                      }}>
                         <SelectTrigger className={errors.categoryId ? "border-destructive" : ""}>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
@@ -1004,7 +1185,10 @@ export default function NewProductPage() {
                         step="0.01"
                         placeholder="0.00"
                         value={price}
-                        onChange={(e) => setPrice(e.target.value)}
+                        onChange={(e) => {
+                          setPrice(e.target.value);
+                          validateField('price', e.target.value);
+                        }}
                         className={errors.price ? "border-destructive" : ""}
                       />
                       {errors.price && (
@@ -1039,8 +1223,15 @@ export default function NewProductPage() {
                         step="0.01"
                         placeholder="0.00"
                         value={discountPrice}
-                        onChange={(e) => setDiscountPrice(e.target.value)}
+                        onChange={(e) => {
+                          setDiscountPrice(e.target.value);
+                          validateField('discountPrice', e.target.value);
+                        }}
+                        className={errors.discountPrice ? "border-destructive" : ""}
                       />
+                      {errors.discountPrice && (
+                        <p className="text-sm text-destructive">{errors.discountPrice}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -1063,8 +1254,15 @@ export default function NewProductPage() {
                         type="number"
                         placeholder="0"
                         value={stockQuantity}
-                        onChange={(e) => setStockQuantity(e.target.value)}
+                        onChange={(e) => {
+                          setStockQuantity(e.target.value);
+                          validateField('stockQuantity', e.target.value);
+                        }}
+                        className={errors.stockQuantity ? "border-destructive" : ""}
                       />
+                      {errors.stockQuantity && (
+                        <p className="text-sm text-destructive">{errors.stockQuantity}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -1176,7 +1374,11 @@ export default function NewProductPage() {
                                 placeholder="0.00"
                                 value={variant.price || ""}
                                 onChange={(e) => updateVariant(index, 'price', e.target.value || null)}
+                                className={errors[`variant_${index}_price`] ? "border-destructive" : ""}
                               />
+                              {errors[`variant_${index}_price`] && (
+                                <p className="text-sm text-destructive">{errors[`variant_${index}_price`]}</p>
+                              )}
                             </div>
 
                             <div className="space-y-2">
@@ -1199,7 +1401,11 @@ export default function NewProductPage() {
                                 placeholder="0"
                                 value={variant.stockQuantity || 0}
                                 onChange={(e) => updateVariant(index, 'stockQuantity', e.target.value || 0)}
+                                className={errors[`variant_${index}_stock`] ? "border-destructive" : ""}
                               />
+                              {errors[`variant_${index}_stock`] && (
+                                <p className="text-sm text-destructive">{errors[`variant_${index}_stock`]}</p>
+                              )}
                             </div>
 
                             <div className="space-y-2">
