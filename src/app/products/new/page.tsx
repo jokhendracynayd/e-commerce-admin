@@ -97,7 +97,7 @@ export default function NewProductPage() {
     console.log('productImages state changed:', productImages);
   }, [productImages]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [currency, setCurrency] = useState<string>("INR");
+  const [currency, setCurrency] = useState<string>("BDT");
   const [variants, setVariants] = useState<CreateProductVariantDto[]>([]);
   
   // Tag search and creation state
